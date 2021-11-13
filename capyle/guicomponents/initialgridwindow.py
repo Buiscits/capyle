@@ -309,7 +309,7 @@ class _ConfigFrame(tk.Frame):
         return proportions
 
     def set_default(self):
-        self.parent.grid = self.parent.get_initial_grid()
+        self.parent.grid = self.parent.get_initial_
         self.optvar.set(self.options[0])
         if self.mode == 'proportions':
             proportions = self.calc_proportions(self.parent.grid)
