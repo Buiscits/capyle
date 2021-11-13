@@ -3,7 +3,7 @@ from capyle.ca import Neighbourhood
 from capyle.utils import scale_array, verify_gens
 import tkinter as tk
 
-"Ignore test message"
+"Ignore test messagee"
 class Grid(object):
     """Superclass to the Grid1D and Grid2D classes"""
 
