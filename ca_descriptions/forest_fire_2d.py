@@ -42,14 +42,67 @@ def setup(args):
     # ---THE CA MUST BE RELOADED IN THE GUI IF ANY OF THE BELOW ARE CHANGED---
     config.title = "Forest Fire Simulator"
     config.dimensions = 2
-    config.states = (0, 1, 2)
+    config.states = (0, 1, 2, 3, 4, 5)
     # ------------------------------------------------------------------------
 
     # ---- Override the defaults below (these may be changed at anytime) ----
+    # color codes for each terrain property
 
-    config.state_colors = [(0,0,0),(1,1,1), (0.5, 0.5, 0.5)]
+    chaparral_color = (229, 208, 176)
+    lake_color = (75, 182, 239)
+    dense_forest_color = (70, 85, 82)
+    scrubland_color = (151, 151, 96)
+    town_color = (0, 0, 0)
+    fire_color = (247, 55, 24)
+
+    config.state_colors = [chaparral_color, lake_color, dense_forest_color, scrubland_color, town_color, fire_color]
+
+    config.grid_dims = (200, 200)
     # config.num_generations = 150
-    # config.grid_dims = (200,200)
+
+    def draw_terrain():
+        rows, cols = config.grid_dims
+
+        # fill everything with chaparral
+        arr = [[0] * cols] * rows
+        arr = np.array(arr)
+
+        # add lakes
+        x1, x2 = int(0.15*cols), int(0.2*cols)
+        y1, y2 = rows-int(0.7*rows), rows-int(0.6*rows)
+        arr[y1:y2, x1:x2] = 1
+
+        x1, x2 = int(0.6*cols), int(0.9*cols)
+        y1, y2 = rows-int(0.35*rows), rows-int(0.3*rows)
+        arr[y1:y2, x1:x2] = 1
+
+        # add dense forest
+        x1, x2 = int(0.2*cols), int(0.3*cols)
+        y1, y2 = rows-int(0.6*rows), rows-int(0.2*rows)
+        arr[y1:y2, x1:x2] = 2
+
+        x1, x2 = int(0.3*cols), int(0.4*cols)
+        y1, y2 = rows-int(0.9*rows), rows-int(0.4*rows)
+        arr[y1:y2, x1:x2] = 2
+
+        x1, x2 = int(0.3*cols), int(1*cols)
+        y1, y2 = rows-int(0.5*rows), rows-int(0.4*rows)
+        arr[y1:y2, x1:x2] = 2
+
+        # add scrubland
+        x1, x2 = int(0.25*cols), int(0.3*cols)
+        y1, y2 = rows-int(0.9*rows), rows-int(0.1*rows)
+        arr[y1:y2, x1:x2] = 3
+
+        # add a town
+        x1, x2 = int(0.5*cols), int(0.55*cols)
+        y1, y2 = rows-int(0.25*rows), rows-int(0.2*rows)
+        arr[y1:y2, x1:x2] = 4
+
+        print(arr)
+        return arr
+
+    config.set_initial_grid(draw_terrain())
 
     # ----------------------------------------------------------------------
 
