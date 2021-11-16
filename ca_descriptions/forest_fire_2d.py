@@ -4,6 +4,7 @@
 # --- Set up executable path, do not edit ---
 import sys
 import inspect
+import random
 this_file_loc = (inspect.stack()[0][1])
 main_dir_loc = this_file_loc[:this_file_loc.index('ca_descriptions')]
 sys.path.append(main_dir_loc)
@@ -17,22 +18,49 @@ import capyle.utils as utils
 import numpy as np
 
 
-def transition_func(grid, neighbourstates, neighbourcounts):
+def transition_func(grid, neighbourstates, neighbourcounts, decaygrid):
 
-    # NOTE THESE ARE STILL THE DEFAULT VALUES FROM GAME OF LIFE
+    def decision(probability):
+        return random.random() < probability
 
-    # dead = state == 0, live = state == 1
-    # unpack state counts for state 0 and state 1
-    dead_neighbours, live_neighbours = neighbourcounts
-    # create boolean arrays for the birth & survival rules
-    # if 3 live neighbours and is dead -> cell born
-    birth = (live_neighbours == 3) & (grid == 0)
-    # if 2 or 3 live neighbours and is alive -> survives
-    survive = ((live_neighbours == 2) | (live_neighbours == 3)) & (grid == 1)
-    # Set all cells to 0 (dead)
-    grid[:, :] = 0
-    # Set cells to 1 where either cell is born or survives
-    grid[birth | survive] = 1
+    def probability_p_burn(terrain):
+        p_h, p_veg, p_den, p_w, p_s = (0, 0, 0, 0, 0)
+        if terrain == 0:
+            p_h, p_veg, p_den, p_w, p_s = (0.05, 0.5, 0.5, 0.5, 0.5)
+        elif terrain == 2:
+            p_h, p_veg, p_den, p_w, p_s = (0.05, 0.05, 0.05, 0.5, 0.5)
+        elif terrain == 3:
+            p_h, p_veg, p_den, p_w, p_s = (1, 1, 1, 1, 1)
+        return p_h*(1+p_veg)*(1+p_den)*p_w*p_s
+
+    cells_in_state_0 = (grid == 0)  # cells that are currently in state 0
+    cells_in_state_2 = (grid == 2)
+    cells_in_state_3 = (grid == 3)
+    cells_in_state_5 = (grid == 5)
+
+    three_zero_neighbours = (neighbourcounts[5] >= 1)  # cells that have 1 or more neighbours in state 5 (on fire)
+
+    decaygrid[cells_in_state_5] -= 1  # take one off their decay value
+
+    for row in range(0, 199):
+        for col in range(0, 199):
+            if col:
+                if row == 0 or col == 0:
+                    three_zero_neighbours[col][row] = False
+                elif three_zero_neighbours[col][row]:
+                    three_zero_neighbours[col][row] = decision(probability_p_burn(grid[col][row]))
+
+    three_zero_neighbours[0] = False
+    three_zero_neighbours[199] = False
+
+    to_zero = (cells_in_state_0 | cells_in_state_2 | cells_in_state_3) & three_zero_neighbours
+    # cells that are currently in state 1 and have exactly three neighbours in state 0
+    # are set to zero
+
+    decayed_to_zero = (decaygrid == -30)  # find those which have decayed to -2
+    grid[decayed_to_zero] = 4  # switch their state to 0
+    grid[to_zero] = 5
+
     return grid
 
 
@@ -55,10 +83,10 @@ def setup(args):
     town_color = (0, 0, 0)
     fire_color = (247, 55, 24)
 
-    config.state_colors = [chaparral_color, lake_color, dense_forest_color, scrubland_color, town_color, fire_color]
+    config.state_colors = np.array([chaparral_color, lake_color, dense_forest_color, scrubland_color, town_color, fire_color])/255
 
     config.grid_dims = (200, 200)
-    # config.num_generations = 150
+    config.num_generations = 1000
 
     def draw_terrain():
         rows, cols = config.grid_dims
@@ -66,6 +94,12 @@ def setup(args):
         # fill everything with chaparral
         arr = [[0] * cols] * rows
         arr = np.array(arr)
+
+        #add fire
+        x1, x2 = int(0.08*cols), int(0.085*cols)
+        y1, y2 = rows-int(0.65*rows), rows-int(0.645*rows)
+        arr[y1:y2, x1:x2] = 5
+
 
         # add lakes
         x1, x2 = int(0.15*cols), int(0.2*cols)
@@ -117,8 +151,12 @@ def main():
     # Open the config object
     config = setup(sys.argv[1:])
 
+    # initialise the decay grid
+    decaygrid = np.zeros(config.grid_dims)
+    decaygrid.fill(2)
+
     # Create grid object
-    grid = Grid2D(config, transition_func)
+    grid = Grid2D(config, (transition_func, decaygrid))
 
     # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
