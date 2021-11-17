@@ -18,7 +18,7 @@ import capyle.utils as utils
 import numpy as np
 
 
-def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_terrain):
+def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_terrain, topology_grid):
 
     def decision(probability):
         return random.random() < probability
@@ -181,8 +181,17 @@ def main():
     decaygrid = np.zeros(config.grid_dims)
     decaygrid.fill(2)
 
+    # Initialise topology Grid
+    max_height = 10
+
+
+
+    noise = np.random.normal(0, max_height, np.zeros(config.grid_dims))
+    topology_grid = abs(noise).astype(int)
+
+
     # Create grid object
-    grid = Grid2D(config, (transition_func, decaygrid, initial_terrain))
+    grid = Grid2D(config, (transition_func, decaygrid, initial_terrain, topology_grid))
 
     # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
