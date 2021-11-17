@@ -18,7 +18,7 @@ import capyle.utils as utils
 import numpy as np
 
 
-def transition_func(grid, neighbourstates, neighbourcounts, decaygrid):
+def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_terrain):
 
     def decision(probability):
         return random.random() < probability
@@ -33,33 +33,59 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid):
             p_h, p_veg, p_den, p_w, p_s = (1, 1, 1, 1, 1)
         return p_h*(1+p_veg)*(1+p_den)*p_w*p_s
 
-    cells_in_state_0 = (grid == 0)  # cells that are currently in state 0
-    cells_in_state_2 = (grid == 2)
-    cells_in_state_3 = (grid == 3)
-    cells_in_state_5 = (grid == 5)
+    def probability_p_w(wind_direction, cell_coordindates):
+        pass
 
-    three_zero_neighbours = (neighbourcounts[5] >= 1)  # cells that have 1 or more neighbours in state 5 (on fire)
+    def fire_direction(cell_coordinates, grid):
+        pass
 
-    decaygrid[cells_in_state_5] -= 1  # take one off their decay value
+    # unpack the state arrays
+    NW, N, NE, W, E, SW, S, SE = neighbourstates
 
+    print(NW.shape)
+
+    # select wind direction in degrees
+    wind_direction = 150
+
+    # cells that can catch fire: chaparral, forest, scrubland
+    burnable_cells = ((grid == 0) | (grid == 2) | (grid == 3))
+
+    # cells that were burning in last time step
+    burning_cells = (grid == 5)
+
+    # cells that have 1 or more neighbours in state 5 (on fire)
+    cells_with_burning_neighbours = (neighbourcounts[5] >= 1)
+
+    # take one off their decay value, calculates for how many time steps a cell has been burning
+    decaygrid[burning_cells] -= 1
+
+    # assigns the probability of each cell catching fire and then probabilistically decides if it will
     for row in range(0, 199):
         for col in range(0, 199):
             if col:
                 if row == 0 or col == 0:
-                    three_zero_neighbours[col][row] = False
-                elif three_zero_neighbours[col][row]:
-                    three_zero_neighbours[col][row] = decision(probability_p_burn(grid[col][row]))
+                    cells_with_burning_neighbours[col][row] = False
+                elif cells_with_burning_neighbours[col][row]:
+                    cells_with_burning_neighbours[col][row] = decision(probability_p_burn(grid[col][row]))
 
-    three_zero_neighbours[0] = False
-    three_zero_neighbours[199] = False
+    # prevents fire from spreading on the other side of the map
+    cells_with_burning_neighbours[0] = False
+    cells_with_burning_neighbours[199] = False
 
-    to_zero = (cells_in_state_0 | cells_in_state_2 | cells_in_state_3) & three_zero_neighbours
-    # cells that are currently in state 1 and have exactly three neighbours in state 0
-    # are set to zero
+    # cells that are burnable and have been probabilistically assigned as catching fire will catch fire
+    to_fire_state = burnable_cells & cells_with_burning_neighbours
 
-    decayed_to_zero = (decaygrid == -30)  # find those which have decayed to -2
-    grid[decayed_to_zero] = 4  # switch their state to 0
-    grid[to_zero] = 5
+    # for how many generations can certain terrain burn
+    chaparral_burning_gen = -1000
+    dense_forest_burning_gen = -50
+    scrubland_burning_gen = -10
+
+    decayed_to_burned_land = (((decaygrid == chaparral_burning_gen) & (initial_terrain == 0))
+                              | ((decaygrid == dense_forest_burning_gen) & (initial_terrain == 2))
+                              | ((decaygrid == scrubland_burning_gen) & (initial_terrain == 3)))
+
+    grid[decayed_to_burned_land] = 4
+    grid[to_fire_state] = 5
 
     return grid
 
@@ -86,7 +112,7 @@ def setup(args):
     config.state_colors = np.array([chaparral_color, lake_color, dense_forest_color, scrubland_color, town_color, fire_color])/255
 
     config.grid_dims = (200, 200)
-    config.num_generations = 1000
+    config.num_generations = 500
 
     def draw_terrain():
         rows, cols = config.grid_dims
@@ -133,9 +159,9 @@ def setup(args):
         y1, y2 = rows-int(0.25*rows), rows-int(0.2*rows)
         arr[y1:y2, x1:x2] = 4
 
-        print(arr)
         return arr
 
+    initial_terrain = draw_terrain()
     config.set_initial_grid(draw_terrain())
 
     # ----------------------------------------------------------------------
@@ -144,19 +170,19 @@ def setup(args):
         config.save()
         sys.exit()
 
-    return config
+    return config, initial_terrain
 
 
 def main():
     # Open the config object
-    config = setup(sys.argv[1:])
+    config, initial_terrain = setup(sys.argv[1:])
 
     # initialise the decay grid
     decaygrid = np.zeros(config.grid_dims)
     decaygrid.fill(2)
 
     # Create grid object
-    grid = Grid2D(config, (transition_func, decaygrid))
+    grid = Grid2D(config, (transition_func, decaygrid, initial_terrain))
 
     # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
