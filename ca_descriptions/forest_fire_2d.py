@@ -16,21 +16,63 @@ sys.path.append(main_dir_loc + 'capyle/guicomponents')
 from capyle.ca import Grid2D, Neighbourhood, CAConfig, randomise2d
 import capyle.utils as utils
 import numpy as np
+import math
 
 
 def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_terrain, topology_grid):
 
+    terrain_fire_rates = {0: 0.05, 1: 0, 2: 0.05, 3: 1, 4: 0, 5: 0}
+
     def decision(probability):
         return random.random() < probability
 
-    def probability_p_burn(terrain):
+    def calculate_terrain_spread_probability(slope_item):
+        return terrain_fire_rates[slope_item[0]] * math.exp(1 * slope_item[1])
+
+    def calculate_terrain_spread_probabilities(row, column):
+        
+        def calculate_slope(current_cell, neighbour_cell, is_diagonal):
+            if is_diagonal:
+                return (current_cell, math.degrees(math.atan((current_cell - neighbour_cell) / math.sqrt(2))))
+            else:
+                return (current_cell, math.degrees(math.atan((current_cell - neighbour_cell) / 1)))
+
+        terrain = grid[row][column]
+        
+         # Non Diagonal
+        up_slope = calculate_slope(terrain, grid[row][col + 1], False)
+        down_slope = calculate_slope(terrain, grid[row][col - 1], False)
+        right_slope = calculate_slope(terrain, grid[row + 1][col], False)
+        left_slope = calculate_slope(terrain, grid[row - 1][col], False)
+
+        # Diagonal
+        top_left_slope = calculate_slope(terrain, grid[row - 1][col - 1], True)
+        bottom_left_slope = calculate_slope(terrain, grid[row + 1][col - 1], True)
+        top_right_slope = calculate_slope(terrain, grid[row - 1][col + 1], True)
+        bottom_right_slope = calculate_slope(terrain, grid[row + 1][col + 1], True)
+
+        slopes = [up_slope, down_slope, left_slope, right_slope, top_left_slope, top_right_slope, bottom_left_slope, bottom_right_slope]
+
+        fire_probabilities = list(map(calculate_terrain_spread_probability, slopes))
+
+        return fire_probabilities
+
+
+    def probability_p_burn(row, column):
+    
+        terrain = grid[row][column]
+        
+        neighbour_terrain_fire_spread_probabilities = calculate_terrain_spread_probabilities(row, column)
+
         p_h, p_veg, p_den, p_w, p_s = (0, 0, 0, 0, 0)
+
         if terrain == 0:
             p_h, p_veg, p_den, p_w, p_s = (0.05, 0.5, 0.5, 0.5, 0.5)
         elif terrain == 2:
             p_h, p_veg, p_den, p_w, p_s = (0.05, 0.05, 0.05, 0.5, 0.5)
         elif terrain == 3:
             p_h, p_veg, p_den, p_w, p_s = (1, 1, 1, 1, 1)
+
         return p_h*(1+p_veg)*(1+p_den)*p_w*p_s
 
     def probability_p_w(wind_direction, cell_coordindates):
@@ -40,9 +82,9 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         pass
 
     # unpack the state arrays
-    NW, N, NE, W, E, SW, S, SE = neighbourstates
+    #NW, N, NE, W, E, SW, S, SE = neighbourstates
 
-    print(NW.shape)
+    #print(NW.shape)
 
     # select wind direction in degrees
     wind_direction = 150
@@ -66,7 +108,9 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
                 if row == 0 or col == 0:
                     cells_with_burning_neighbours[col][row] = False
                 elif cells_with_burning_neighbours[col][row]:
-                    cells_with_burning_neighbours[col][row] = decision(probability_p_burn(grid[col][row]))
+
+                    cells_with_burning_neighbours[col][row] = decision(probability_p_burn(col, row))
+            
 
     # prevents fire from spreading on the other side of the map
     cells_with_burning_neighbours[0] = False
@@ -111,7 +155,10 @@ def setup(args):
 
     config.state_colors = np.array([chaparral_color, lake_color, dense_forest_color, scrubland_color, town_color, fire_color])/255
 
-    config.grid_dims = (200, 200)
+    grid_height = 200
+    grid_width = 200
+
+    config.grid_dims = (grid_width, grid_height)
     config.num_generations = 500
 
     def draw_terrain():
@@ -184,9 +231,7 @@ def main():
     # Initialise topology Grid
     max_height = 10
 
-
-
-    noise = np.random.normal(0, max_height, np.zeros(config.grid_dims))
+    noise = np.random.normal(0, max_height, size=config.grid_dims)
     topology_grid = abs(noise).astype(int)
 
 
