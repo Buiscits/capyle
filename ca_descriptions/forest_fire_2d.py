@@ -5,6 +5,8 @@
 import sys
 import inspect
 import random
+import scipy.stats
+
 this_file_loc = (inspect.stack()[0][1])
 main_dir_loc = this_file_loc[:this_file_loc.index('ca_descriptions')]
 sys.path.append(main_dir_loc)
@@ -18,13 +20,44 @@ import capyle.utils as utils
 import numpy as np
 import math
 
-
 def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_terrain, topology_grid):
 
     terrain_fire_rates = {0: 0.05, 1: 0, 2: 0.05, 3: 1, 4: 0, 5: 0}
 
     def decision(probability):
         return random.random() < probability
+    
+    def probability_p_burn(x, y):
+
+        terrain = grid[x][y]
+
+        wind_probabilities = probability_p_w([0, -1], 0.1, fire_direction(x, y))
+        p_h, p_veg, p_den, p_w, p_s = (0, 0, 0, 0.0, 0)
+        decide = False
+
+        for p_w in wind_probabilities:
+            if terrain == 0:
+                p_h, p_veg, p_den, p_s = (0.5, 0.5, 0.5, 0.5)
+            elif terrain == 2:
+                p_h, p_veg, p_den, p_s = (0.05, 0.05, 0.05, 0.5)
+            elif terrain == 3:
+                p_h, p_veg, p_den, p_s = (1, 1, 1, 1)
+
+            decide = decision(p_h * (1 + p_veg) * (1 + p_den) * p_w * p_s)
+            if decide:
+                break
+
+        return decide
+
+    def probability_p_w(wind_direction, wind_speed, relative_fire_coordinates):
+        wind_probabilities = []
+
+        for fire_direction in relative_fire_coordinates:
+            angle = angle_between_two_vectors(fire_direction, wind_direction)/2
+            pdf = scipy.stats.norm(0, 1/wind_speed).pdf(angle)
+            wind_probabilities.append(pdf)
+
+        return wind_probabilities
 
     def calculate_terrain_spread_probability(slope_item):
         return terrain_fire_rates[slope_item[0]] * math.exp(1 * slope_item[1])
@@ -74,53 +107,55 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
             p_h, p_veg, p_den, p_w, p_s = (1, 1, 1, 1, 1)
 
         return p_h*(1+p_veg)*(1+p_den)*p_w*p_s
+    def angle_between_two_vectors(v1, v2):
+        def unit_vector(vector):
+            return np.divide(vector, np.linalg.norm(vector))
 
-    def probability_p_w(wind_direction, cell_coordindates):
-        pass
+        v1_u = unit_vector(v1)
+        v2_u = unit_vector(v2)
+        return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
 
-    def fire_direction(cell_coordinates, grid):
-        pass
+    def fire_direction(cell_x, cell_y):
+        relative_fire_coordinates = []
+        for x in [-1, 0, 1]:
+            for y in [-1, 0, 1]:
+                if grid[cell_x + x][cell_y + y] == 5 and grid[cell_x][cell_y] != 5:
+                    relative_fire_coordinates.append((x, y))
 
-    # unpack the state arrays
-    #NW, N, NE, W, E, SW, S, SE = neighbourstates
+        return relative_fire_coordinates
 
-    #print(NW.shape)
+    np.seterr(invalid='ignore')  # ignores warnings lol
+    #grid[y axis][x axis]
 
     # select wind direction in degrees
     wind_direction = 150
 
-    # cells that can catch fire: chaparral, forest, scrubland
-    burnable_cells = ((grid == 0) | (grid == 2) | (grid == 3))
+    # cells that can catch fire: chaparral, forest, scrubland and have a neighbour thats on fire
+    burnable_cells = (((grid == 0) | (grid == 2) | (grid == 3)) & (neighbourcounts[5] >= 1))
 
     # cells that were burning in last time step
     burning_cells = (grid == 5)
 
-    # cells that have 1 or more neighbours in state 5 (on fire)
-    cells_with_burning_neighbours = (neighbourcounts[5] >= 1)
-
     # take one off their decay value, calculates for how many time steps a cell has been burning
     decaygrid[burning_cells] -= 1
-
+    count = 0
     # assigns the probability of each cell catching fire and then probabilistically decides if it will
     for row in range(0, 199):
         for col in range(0, 199):
-            if col:
-                if row == 0 or col == 0:
-                    cells_with_burning_neighbours[col][row] = False
-                elif cells_with_burning_neighbours[col][row]:
-
-                    cells_with_burning_neighbours[col][row] = decision(probability_p_burn(col, row))
             
+            if row == 0 or col == 0 or burnable_cells[col][row] is False:
+                burnable_cells[col][row] = False
+            elif burnable_cells[col][row]:
+                count = count + 1
+                burnable_cells[col][row] = probability_p_burn(col, row)
 
+    print(count)
     # prevents fire from spreading on the other side of the map
-    cells_with_burning_neighbours[0] = False
-    cells_with_burning_neighbours[199] = False
-
-    # cells that are burnable and have been probabilistically assigned as catching fire will catch fire
-    to_fire_state = burnable_cells & cells_with_burning_neighbours
+    burnable_cells[0] = False
+    burnable_cells[199] = False
 
     # for how many generations can certain terrain burn
-    chaparral_burning_gen = -1000
+    chaparral_burning_gen = -5
     dense_forest_burning_gen = -50
     scrubland_burning_gen = -10
 
@@ -129,7 +164,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
                               | ((decaygrid == scrubland_burning_gen) & (initial_terrain == 3)))
 
     grid[decayed_to_burned_land] = 4
-    grid[to_fire_state] = 5
+    grid[burnable_cells] = 5
 
     return grid
 
@@ -159,7 +194,7 @@ def setup(args):
     grid_width = 200
 
     config.grid_dims = (grid_width, grid_height)
-    config.num_generations = 500
+    config.num_generations = 200
 
     def draw_terrain():
         rows, cols = config.grid_dims
@@ -233,7 +268,6 @@ def main():
 
     noise = np.random.normal(0, max_height, size=config.grid_dims)
     topology_grid = abs(noise).astype(int)
-
 
     # Create grid object
     grid = Grid2D(config, (transition_func, decaygrid, initial_terrain, topology_grid))
