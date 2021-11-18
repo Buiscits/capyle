@@ -35,11 +35,13 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         p_h, p_veg, p_den, p_w, p_s = (0, 0, 0, 0.0, 0)
         decide = False
 
+        p_s = calculate_slope_fire_spread_probability(x, y)
+
         for p_w in wind_probabilities:
             if terrain == 0:
-                p_h, p_veg, p_den, p_s = (0.5, 0.5, 0.5, 0.5)
+                p_h, p_veg, p_den, p_s = (0.5, 0.5, 0.5, p_s)
             elif terrain == 2:
-                p_h, p_veg, p_den, p_s = (0.05, 0.05, 0.05, 0.5)
+                p_h, p_veg, p_den, p_s = (0.05, 0.05, 0.05, p_s)
             elif terrain == 3:
                 p_h, p_veg, p_den, p_s = (1, 1, 1, 1)
 
@@ -59,8 +61,16 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
 
         return wind_probabilities
 
-    def calculate_terrain_spread_probability(slope_item):
-        return terrain_fire_rates[slope_item[0]] * math.exp(1 * slope_item[1])
+    def calculate_slope_fire_spread_probability(row, column):
+
+        # Calculate final fire rate probability due to elevation
+        neighbour_terrain_fire_spread_probabilities = calculate_terrain_spread_probabilities(row, column)
+        #print("MAX: ", max(neighbour_terrain_fire_spread_probabilities))
+        # See if slope small enough to make block catch fire
+        cells_that_should_spread_fire = np.array(neighbour_terrain_fire_spread_probabilities) < 0.8
+
+        #print("LEN:", (cells_that_should_spread_fire == True).size / 8)
+        return (cells_that_should_spread_fire == True).size / 8
 
     def calculate_terrain_spread_probabilities(row, column):
         
@@ -73,40 +83,23 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         terrain = grid[row][column]
         
          # Non Diagonal
-        up_slope = calculate_slope(terrain, grid[row][col + 1], False)
-        down_slope = calculate_slope(terrain, grid[row][col - 1], False)
-        right_slope = calculate_slope(terrain, grid[row + 1][col], False)
-        left_slope = calculate_slope(terrain, grid[row - 1][col], False)
+        up_slope = calculate_slope(terrain, topology_grid[row][col + 1], False)
+        down_slope = calculate_slope(terrain, topology_grid[row][col - 1], False)
+        right_slope = calculate_slope(terrain, topology_grid[row + 1][col], False)
+        left_slope = calculate_slope(terrain, topology_grid[row - 1][col], False)
 
         # Diagonal
-        top_left_slope = calculate_slope(terrain, grid[row - 1][col - 1], True)
-        bottom_left_slope = calculate_slope(terrain, grid[row + 1][col - 1], True)
-        top_right_slope = calculate_slope(terrain, grid[row - 1][col + 1], True)
-        bottom_right_slope = calculate_slope(terrain, grid[row + 1][col + 1], True)
+        top_left_slope = calculate_slope(terrain, topology_grid[row - 1][col - 1], True)
+        bottom_left_slope = calculate_slope(terrain, topology_grid[row + 1][col - 1], True)
+        top_right_slope = calculate_slope(terrain, topology_grid[row - 1][col + 1], True)
+        bottom_right_slope = calculate_slope(terrain, topology_grid[row + 1][col + 1], True)
 
         slopes = [up_slope, down_slope, left_slope, right_slope, top_left_slope, top_right_slope, bottom_left_slope, bottom_right_slope]
 
-        fire_probabilities = list(map(calculate_terrain_spread_probability, slopes))
+        fire_probabilities = list(map(lambda x: terrain_fire_rates[x[0]] * math.exp(1 * x[1]), slopes))
 
         return fire_probabilities
-
-
-    def probability_p_burn(row, column):
     
-        terrain = grid[row][column]
-        
-        neighbour_terrain_fire_spread_probabilities = calculate_terrain_spread_probabilities(row, column)
-
-        p_h, p_veg, p_den, p_w, p_s = (0, 0, 0, 0, 0)
-
-        if terrain == 0:
-            p_h, p_veg, p_den, p_w, p_s = (0.05, 0.5, 0.5, 0.5, 0.5)
-        elif terrain == 2:
-            p_h, p_veg, p_den, p_w, p_s = (0.05, 0.05, 0.05, 0.5, 0.5)
-        elif terrain == 3:
-            p_h, p_veg, p_den, p_w, p_s = (1, 1, 1, 1, 1)
-
-        return p_h*(1+p_veg)*(1+p_den)*p_w*p_s
     def angle_between_two_vectors(v1, v2):
         def unit_vector(vector):
             return np.divide(vector, np.linalg.norm(vector))
@@ -149,7 +142,8 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
                 count = count + 1
                 burnable_cells[col][row] = probability_p_burn(col, row)
 
-    print(count)
+
+    #print(count)
     # prevents fire from spreading on the other side of the map
     burnable_cells[0] = False
     burnable_cells[199] = False
