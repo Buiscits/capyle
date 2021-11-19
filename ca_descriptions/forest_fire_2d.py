@@ -1,11 +1,6 @@
 # Name: Forest Fire Simulation
 # Dimensions: 2
-
 # --- Set up executable path, do not edit ---
-import math
-import numpy as np
-import capyle.utils as utils
-from capyle.ca import Grid2D, Neighbourhood, CAConfig, randomise2d
 import sys
 import inspect
 import random
@@ -18,6 +13,11 @@ sys.path.append(main_dir_loc + 'capyle')
 sys.path.append(main_dir_loc + 'capyle/ca')
 sys.path.append(main_dir_loc + 'capyle/guicomponents')
 # ---
+
+from capyle.ca import Grid2D, Neighbourhood, CAConfig, randomise2d
+import capyle.utils as utils
+import numpy as np
+import math
 
 
 def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_terrain, topology_grid):
@@ -129,11 +129,26 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
 
         return relative_fire_coordinates
 
-    def lightning_strike(burnable_cells, cells_burning_last_t):
-        possible_cells_set = set.intersection(
-            set(burnable_cells), set(cells_burning_last_t))
-        possible_cells = list(possible_cells_set)
-        return grid[random.choice(possible_cells)]
+    def lightning_strike():
+        rows, cols = 200, 200
+        upper_lake_x1, upper_lake_x2 = int(0.15*cols), int(0.2*cols)
+        upper_lake_y1, upper_lake_y2 = rows-int(0.7*rows), rows-int(0.6*rows)
+
+        lower_lake_x1, lower_lake_x2 = int(0.6*cols), int(0.9*cols)
+        lower_lake_y1, lower_lake_y2 = rows-int(0.35*rows), rows-int(0.3*rows)
+
+        x, y = (random.randint(0, 199), random.randint(0, 199))
+        # test values
+        # x, y = 35, 65
+        # x, y = 100, 100
+        
+        # check if generate coordinates are in water, if so then lightning has no effect
+        if ((upper_lake_x1 <= x <= upper_lake_x2 and upper_lake_y1 <= y <= upper_lake_y2) or 
+            (lower_lake_x1 <= x <= lower_lake_x2 and lower_lake_y1 <= y <= lower_lake_y2)):
+            grid[y][x] = 1
+            print("hi")
+        else:
+            grid[y][x] = 5        
 
     np.seterr(invalid='ignore')  # ignores warnings lol
     # grid[y axis][x axis]
@@ -178,7 +193,8 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
     grid[decayed_to_burned_land] = 4
     grid[burnable_cells] = 5
 
-    grid[lightning_strike(burnable_cells, burning_cells)] = 5
+    if decision(0.01):
+        lightning_strike()
 
     return grid
 
