@@ -188,7 +188,7 @@ def setup(args):
     grid_width = 200
 
     config.grid_dims = (grid_width, grid_height)
-    config.num_generations = 1000
+    config.num_generations = 200
 
     def draw_terrain():
         rows, cols = config.grid_dims
@@ -264,7 +264,7 @@ def main():
  
     noise = np.random.normal(0, max_height, size=config.grid_dims)
     topology_grid = abs(noise).astype(int)
-    smoothed_topology = gaussian_filter(topology_grid, sigma=6)
+    smoothed_topology = gaussian_filter(topology_grid, sigma=10)
 
     # Graph and Save the topology grid as png
     plt.imshow(smoothed_topology, cmap='hot', interpolation='nearest')
