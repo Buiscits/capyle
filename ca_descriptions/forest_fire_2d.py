@@ -22,9 +22,14 @@ import math
 from matplotlib import pyplot as plt
 from scipy.ndimage.filters import gaussian_filter
 
-def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_terrain, topology_grid):
+def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_terrain, topology_grid, generation_array, plane_params):
+
+
+    generation_array[0] += 1
+    #print(generation_array[0])
 
     terrain_fire_rates = {0: 0.05, 1: 0, 2: 0.05, 3: 1, 4: 0, 5: 0}
+
 
     def lightning_strike():
         rows, cols = 200, 200
@@ -46,9 +51,6 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
             print("hi")
         else:
             grid[y][x] = 5        
-
-    
-
 
     def decision(probability):
         return random.random() < probability
@@ -184,8 +186,62 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
     grid[decayed_to_burned_land] = 4
     grid[burnable_cells] = 5
 
-    if decision(0.01):
+    if decision(0.001):
         lightning_strike()
+
+    # Plane
+    # plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction_vector, plane_drop_rate, plane_tank, plane_start_gen])
+    if generation_array[0] >= plane_params[5]:
+
+        if plane_params[4] < 0:
+            return grid
+
+        time_step_diff = generation_array[0] - plane_params[5]
+        
+        old_plane_pos_x = plane_params[0][0]
+        old_plane_pos_y = plane_params[0][1]
+
+        plane_angle = (plane_params[2] - 90) * np.pi / 180
+
+        new_plane_pos_x = int(old_plane_pos_x + math.cos(plane_angle) * 2)
+        new_plane_pos_y = int(old_plane_pos_y + math.sin(plane_angle) * 2)
+
+        # Check if new pos it out of the grid
+        if new_plane_pos_y >= 200 or new_plane_pos_y < 0:
+            
+            return grid
+
+        if new_plane_pos_x >= 200 or new_plane_pos_x < 0:
+            
+            return grid
+
+
+        # Update the new plane position
+        plane_params[0] = (new_plane_pos_x, new_plane_pos_y)
+
+        # Drop some water from the planes tank
+        plane_params[4] -= 0.5
+
+        # Calculate cells that the plane flies over
+        range_y = np.arange(old_plane_pos_y, new_plane_pos_y)
+        if old_plane_pos_y >= new_plane_pos_y:
+            range_y = np.arange(new_plane_pos_y, old_plane_pos_y)
+
+        range_x = np.arange(old_plane_pos_x, new_plane_pos_x)
+        if old_plane_pos_x >= new_plane_pos_x:
+            range_x = np.arange(new_plane_pos_x, old_plane_pos_x)
+
+        if old_plane_pos_x == new_plane_pos_x:  
+            range_x = np.concatenate((np.array([old_plane_pos_x]), range_x))
+
+        if old_plane_pos_y == new_plane_pos_y:
+            range_y = np.concatenate((np.array([old_plane_pos_y]), range_y))
+
+        if len(range_x) == 0 or len(range_y) == 0: #or len(range_x) != len(range_y):
+            return grid
+
+        # Mark cells that the plane flew over as water cells
+        grid[np.ix_(range_y, range_x)] = 1
 
     return grid
 
@@ -215,7 +271,7 @@ def setup(args):
     grid_width = 200
 
     config.grid_dims = (grid_width, grid_height)
-    config.num_generations = 200
+    config.num_generations = 50
 
     def draw_terrain():
         rows, cols = config.grid_dims
@@ -276,8 +332,6 @@ def setup(args):
     return config, initial_terrain
 
 
-    
-
 def main():
     # Open the config object
     config, initial_terrain = setup(sys.argv[1:])
@@ -301,10 +355,20 @@ def main():
     plt.draw()
     fig1.savefig('test.png', dpi=100)
 
+    # Plane Drop
+    drop_start_pos = (100, 100)
+    plane_current_pos = drop_start_pos
 
+    plane_direction = 299
+
+    plane_drop_rate = 10
+    plane_tank = 12.5
+    plane_start_gen = 0
+    
+    plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction, plane_drop_rate, plane_tank, plane_start_gen], dtype=object)
 
     # Create grid object
-    grid = Grid2D(config, (transition_func, decaygrid, initial_terrain, smoothed_topology))
+    grid = Grid2D(config, (transition_func, decaygrid, initial_terrain, smoothed_topology, np.array([0]), plane_params))
 
     # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
