@@ -18,18 +18,18 @@ from capyle.ca import Grid2D, Neighbourhood, CAConfig, randomise2d
 import capyle.utils as utils
 import numpy as np
 
+
 def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_terrain):
 
-    def decision(probability):
+    def decide(probability):
         return random.random() < probability
-    
-    def probability_p_burn(x, y):
 
+    def probability_p_burn(x, y):
         terrain = grid[x][y]
 
-        wind_probabilities = probability_p_w([0, -1], 0.1, fire_direction(x, y))
+        wind_probabilities = probability_p_w([0, -1], 6.0, fire_direction(x, y))
         p_h, p_veg, p_den, p_w, p_s = (0, 0, 0, 0.0, 0)
-        decide = False
+        decision = False
 
         for p_w in wind_probabilities:
             if terrain == 0:
@@ -39,11 +39,11 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
             elif terrain == 3:
                 p_h, p_veg, p_den, p_s = (1, 1, 1, 1)
 
-            decide = decision(p_h * (1 + p_veg) * (1 + p_den) * p_w * p_s)
-            if decide:
+            decision = decide(p_h * (1 + p_veg) * (1 + p_den) * p_w * p_s)
+            if decision:
                 break
 
-        return decide
+        return decision
 
     def probability_p_w(wind_direction, wind_speed, relative_fire_coordinates):
         wind_probabilities = []
@@ -73,12 +73,8 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         return relative_fire_coordinates
 
     np.seterr(invalid='ignore')  # ignores warnings lol
-    #grid[y axis][x axis]
 
-    # select wind direction in degrees
-    wind_direction = 150
-
-    # cells that can catch fire: chaparral, forest, scrubland and have a neighbour thats on fire
+    # cells that can catch fire: chaparral, forest, scrubland and have a neighbour that's on fire
     burnable_cells = (((grid == 0) | (grid == 2) | (grid == 3)) & (neighbourcounts[5] >= 1))
 
     # cells that were burning in last time step
@@ -97,12 +93,13 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
                 burnable_cells[col][row] = probability_p_burn(col, row)
 
     print(count)
+
     # prevents fire from spreading on the other side of the map
     burnable_cells[0] = False
     burnable_cells[199] = False
 
     # for how many generations can certain terrain burn
-    chaparral_burning_gen = -5
+    chaparral_burning_gen = -30
     dense_forest_burning_gen = -50
     scrubland_burning_gen = -10
 
@@ -138,7 +135,7 @@ def setup(args):
     config.state_colors = np.array([chaparral_color, lake_color, dense_forest_color, scrubland_color, town_color, fire_color])/255
 
     config.grid_dims = (200, 200)
-    config.num_generations = 200
+    config.num_generations = 500
 
     def draw_terrain():
         rows, cols = config.grid_dims
