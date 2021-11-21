@@ -13,12 +13,14 @@ sys.path.append(main_dir_loc)
 sys.path.append(main_dir_loc + 'capyle')
 sys.path.append(main_dir_loc + 'capyle/ca')
 sys.path.append(main_dir_loc + 'capyle/guicomponents')
-# ---
+# ---   
 
 from capyle.ca import Grid2D, Neighbourhood, CAConfig, randomise2d
 import capyle.utils as utils
 import numpy as np
 import math
+from matplotlib import pyplot as plt
+from scipy.ndimage.filters import gaussian_filter
 
 def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_terrain, topology_grid):
 
@@ -67,7 +69,8 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         neighbour_terrain_fire_spread_probabilities = calculate_terrain_spread_probabilities(row, column)
         #print("MAX: ", max(neighbour_terrain_fire_spread_probabilities))
         # See if slope small enough to make block catch fire
-        cells_that_should_spread_fire = np.array(neighbour_terrain_fire_spread_probabilities) < 0.8
+        on_fire_threshold = 0.1
+        cells_that_should_spread_fire = np.array(neighbour_terrain_fire_spread_probabilities) < on_fire_threshold
 
         #print("LEN:", (cells_that_should_spread_fire == True).size / 8)
         return (cells_that_should_spread_fire == True).size / 8
@@ -120,9 +123,6 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
     np.seterr(invalid='ignore')  # ignores warnings lol
     #grid[y axis][x axis]
 
-    # select wind direction in degrees
-    wind_direction = 150
-
     # cells that can catch fire: chaparral, forest, scrubland and have a neighbour thats on fire
     burnable_cells = (((grid == 0) | (grid == 2) | (grid == 3)) & (neighbourcounts[5] >= 1))
 
@@ -149,7 +149,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
     burnable_cells[199] = False
 
     # for how many generations can certain terrain burn
-    chaparral_burning_gen = -5
+    chaparral_burning_gen = -30
     dense_forest_burning_gen = -50
     scrubland_burning_gen = -10
 
@@ -188,7 +188,7 @@ def setup(args):
     grid_width = 200
 
     config.grid_dims = (grid_width, grid_height)
-    config.num_generations = 200
+    config.num_generations = 1000
 
     def draw_terrain():
         rows, cols = config.grid_dims
@@ -249,6 +249,8 @@ def setup(args):
     return config, initial_terrain
 
 
+    
+
 def main():
     # Open the config object
     config, initial_terrain = setup(sys.argv[1:])
@@ -258,13 +260,24 @@ def main():
     decaygrid.fill(2)
 
     # Initialise topology Grid
-    max_height = 10
-
+    max_height = 100
+ 
     noise = np.random.normal(0, max_height, size=config.grid_dims)
     topology_grid = abs(noise).astype(int)
+    smoothed_topology = gaussian_filter(topology_grid, sigma=6)
+
+    # Graph and Save the topology grid as png
+    plt.imshow(smoothed_topology, cmap='hot', interpolation='nearest')
+    fig1 = plt.gcf()
+    plt.colorbar()
+    plt.show()
+    plt.draw()
+    fig1.savefig('test.png', dpi=100)
+
+
 
     # Create grid object
-    grid = Grid2D(config, (transition_func, decaygrid, initial_terrain, topology_grid))
+    grid = Grid2D(config, (transition_func, decaygrid, initial_terrain, smoothed_topology))
 
     # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
