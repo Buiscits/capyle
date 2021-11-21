@@ -26,6 +26,30 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
 
     terrain_fire_rates = {0: 0.05, 1: 0, 2: 0.05, 3: 1, 4: 0, 5: 0}
 
+    def lightning_strike():
+        rows, cols = 200, 200
+        upper_lake_x1, upper_lake_x2 = int(0.15*cols), int(0.2*cols)
+        upper_lake_y1, upper_lake_y2 = rows-int(0.7*rows), rows-int(0.6*rows)
+
+        lower_lake_x1, lower_lake_x2 = int(0.6*cols), int(0.9*cols)
+        lower_lake_y1, lower_lake_y2 = rows-int(0.35*rows), rows-int(0.3*rows)
+
+        x, y = (random.randint(0, 199), random.randint(0, 199))
+        # test values
+        # x, y = 35, 65
+        # x, y = 100, 100
+        
+        # check if generate coordinates are in water, if so then lightning has no effect
+        if ((upper_lake_x1 <= x <= upper_lake_x2 and upper_lake_y1 <= y <= upper_lake_y2) or 
+            (lower_lake_x1 <= x <= lower_lake_x2 and lower_lake_y1 <= y <= lower_lake_y2)):
+            grid[y][x] = 1
+            print("hi")
+        else:
+            grid[y][x] = 5        
+
+    
+
+
     def decision(probability):
         return random.random() < probability
     
@@ -159,6 +183,9 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
 
     grid[decayed_to_burned_land] = 4
     grid[burnable_cells] = 5
+
+    if decision(0.01):
+        lightning_strike()
 
     return grid
 
