@@ -21,46 +21,65 @@ import numpy as np
 import math
 from matplotlib import pyplot as plt
 from scipy.ndimage.filters import gaussian_filter
+     
 
 def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_terrain, topology_grid, generation_array, plane_params, wind_params):
-
-
     generation_array[0] += 1
-    #print(generation_array[0])
 
     terrain_fire_rates = {0: 0.05, 1: 0, 2: 0.05, 3: 1, 4: 0, 5: 0}
 
-
     def lightning_strike():
-        rows, cols = 200, 200
-        upper_lake_x1, upper_lake_x2 = int(0.15*cols), int(0.2*cols)
-        upper_lake_y1, upper_lake_y2 = rows-int(0.7*rows), rows-int(0.6*rows)
-
-        lower_lake_x1, lower_lake_x2 = int(0.6*cols), int(0.9*cols)
-        lower_lake_y1, lower_lake_y2 = rows-int(0.35*rows), rows-int(0.3*rows)
-
         x, y = (random.randint(0, 199), random.randint(0, 199))
-        # test values
-        # x, y = 35, 65
-        # x, y = 100, 100
-        
-        # check if generate coordinates are in water, if so then lightning has no effect
-        if ((upper_lake_x1 <= x <= upper_lake_x2 and upper_lake_y1 <= y <= upper_lake_y2) or 
-            (lower_lake_x1 <= x <= lower_lake_x2 and lower_lake_y1 <= y <= lower_lake_y2)):
-            grid[y][x] = 1
-            print("hi")
-        else:
-            grid[y][x] = 5        
+        if probability_p_burn(y, x, lighting=True):
+            grid[y][x] = 5
+
+    def find_random_burning_cell(array):
+        (burning_x, burning_y) = random.choice(array)
+        return burning_x, burning_y
+
+    def spotting(burning_cell, wind_direction, wind_speed):
+        x, y = burning_cell
+        distance_x, distance_y = x*wind_direction[0], y*wind_direction[1]
+
+        if distance_x < 0:
+            distance_x *= -1
+        elif distance_x > 0:
+            distance_x = 200 - distance_x
+
+        if distance_y < 0:
+            distance_y *= -1
+        elif distance_y > 0:
+            distance_y = 200 - distance_y
+
+        relative_dist_x = random.randint(0, int(distance_x * (wind_speed / 25)))
+        relative_dist_y = random.randint(0, int(distance_y * (wind_speed / 25)))
+
+        x = x + relative_dist_x*wind_direction[0]
+        y = y + relative_dist_y*wind_direction[1]
+
+        if probability_p_burn(y, x, spotted=True):
+            grid[y][x] = 5
 
     def decision(probability):
         return random.random() < probability
     
-    def probability_p_burn(x, y):
-
+    def probability_p_burn(x, y, spotted=False, lighting=False):
         terrain = grid[x][y]
-
-        wind_probabilities = probability_p_w([0, -1], 0.1, fire_direction(x, y))
         p_h, p_veg, p_den, p_w, p_s = (0, 0, 0, 0.0, 0)
+
+        if spotted or lighting:
+            if terrain == 0:
+                p_h, p_veg, p_den = (0.5, 0.5, 0.5)
+            elif terrain == 2:
+                p_h, p_veg, p_den = (0.05, 0.05, 0.05)
+            elif terrain == 3:
+                p_h, p_veg, p_den = (1, 1, 1)
+            decide = decision(p_h * (1 + p_veg) * (1 + p_den))
+            return decide
+
+        wind_probabilities = probability_p_w([1, 0], 5.0, fire_direction(x, y))
+        p_s = calculate_slope_fire_spread_probability(x, y)
+
         decide = False
 
         p_s = calculate_slope_fire_spread_probability(x, y)
@@ -80,6 +99,8 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         return decide
 
     def probability_p_w(wind_direction, wind_speed, relative_fire_coordinates):
+        x_vect, y_vect = wind_direction
+        wind_direction = (y_vect, x_vect*(-1))
         wind_probabilities = []
 
         for fire_direction in relative_fire_coordinates:
@@ -141,8 +162,9 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         relative_fire_coordinates = []
         for x in [-1, 0, 1]:
             for y in [-1, 0, 1]:
-                if grid[cell_x + x][cell_y + y] == 5 and grid[cell_x][cell_y] != 5:
-                    relative_fire_coordinates.append((x, y))
+                if cell_x + x < 200 and cell_y + y < 200:
+                    if grid[cell_x + x][cell_y + y] == 5 and grid[cell_x][cell_y] != 5:
+                        relative_fire_coordinates.append((x, y))
 
         return relative_fire_coordinates
 
@@ -157,19 +179,17 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
 
     # take one off their decay value, calculates for how many time steps a cell has been burning
     decaygrid[burning_cells] -= 1
-    count = 0
     # assigns the probability of each cell catching fire and then probabilistically decides if it will
+    burning_array = []
     for row in range(0, 199):
         for col in range(0, 199):
-            
+            if grid[col][row] == 5:
+                burning_array.append((row, col))
             if row == 0 or col == 0 or burnable_cells[col][row] is False:
                 burnable_cells[col][row] = False
             elif burnable_cells[col][row]:
-                count = count + 1
                 burnable_cells[col][row] = probability_p_burn(col, row)
 
-
-    #print(count)
     # prevents fire from spreading on the other side of the map
     burnable_cells[0] = False
     burnable_cells[199] = False
@@ -185,9 +205,6 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
 
     grid[decayed_to_burned_land] = 4
     grid[burnable_cells] = 5
-
-    if decision(0.001):
-        lightning_strike()
 
     # Plane
     # plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction, plane_drop_rate, plane_tank, plane_start_gen, plane_height], dtype=object)
@@ -260,9 +277,10 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         grid[np.ix_(range_y, range_x)] = 1
 
 
-
-
-
+    if decision(0.01):
+        spotting(find_random_burning_cell(burning_array), [1, 0], 20)
+    if decision(0.01):
+        lightning_strike()
 
     return grid
 
@@ -292,7 +310,7 @@ def setup(args):
     grid_width = 200
 
     config.grid_dims = (grid_width, grid_height)
-    config.num_generations = 50
+    config.num_generations = 25
 
     def draw_terrain():
         rows, cols = config.grid_dims
@@ -306,6 +324,10 @@ def setup(args):
         y1, y2 = rows-int(0.65*rows), rows-int(0.645*rows)
         arr[y1:y2, x1:x2] = 5
 
+        #add Power plant
+        x1, x2 = int(0.9*cols), int(0.905*cols)
+        y1, y2 = rows - int(0.65*rows), rows-int(0.645*rows)
+        arr[y1:y2, x1:x2] = 4
 
         # add lakes
         x1, x2 = int(0.15*cols), int(0.2*cols)
@@ -356,6 +378,7 @@ def setup(args):
 def main():
     # Open the config object
     config, initial_terrain = setup(sys.argv[1:])
+    generation_count = np.array([0])
 
     # initialise the decay grid
     decaygrid = np.zeros(config.grid_dims)
@@ -397,8 +420,8 @@ def main():
     plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction, plane_drop_rate, plane_tank, plane_start_gen, plane_height], dtype=object)
 
     # Create grid object
-    grid = Grid2D(config, (transition_func, decaygrid, initial_terrain, smoothed_topology, np.array([0]), plane_params, wind_params))
-
+    grid = Grid2D(config, (transition_func, decaygrid, initial_terrain, smoothed_topology, generation_count, plane_params, wind_params))
+    
     # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
 
