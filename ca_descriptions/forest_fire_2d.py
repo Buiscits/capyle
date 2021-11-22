@@ -29,21 +29,10 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
     terrain_fire_rates = {0: 0.05, 1: 0, 2: 0.05, 3: 1, 4: 0, 5: 0}
 
     def lightning_strike():
-        rows, cols = 200, 200
-        upper_lake_x1, upper_lake_x2 = int(0.15*cols), int(0.2*cols)
-        upper_lake_y1, upper_lake_y2 = rows-int(0.7*rows), rows-int(0.6*rows)
-
-        lower_lake_x1, lower_lake_x2 = int(0.6*cols), int(0.9*cols)
-        lower_lake_y1, lower_lake_y2 = rows-int(0.35*rows), rows-int(0.3*rows)
-
         x, y = (random.randint(0, 199), random.randint(0, 199))
-
-        # check if generate coordinates are in water, if so then lightning has no effect
-        if ((upper_lake_x1 <= x <= upper_lake_x2 and upper_lake_y1 <= y <= upper_lake_y2) or 
-            (lower_lake_x1 <= x <= lower_lake_x2 and lower_lake_y1 <= y <= lower_lake_y2)):
-            grid[y][x] = 1
-        else:
+        if probability_p_burn(y, x, lighting=True):
             grid[y][x] = 5
+
 
     def find_random_burning_cell(array):
         (burning_x, burning_y) = random.choice(array)
@@ -71,9 +60,6 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
 
         if probability_p_burn(y, x, spotted=True):
             grid[y][x] = 5
-
-
-
 
     def decision(probability):
         return random.random() < probability
@@ -314,8 +300,6 @@ def setup(args):
     return config, initial_terrain
 
 
-    
-
 def main():
     # Open the config object
     config, initial_terrain = setup(sys.argv[1:])
@@ -339,8 +323,6 @@ def main():
     plt.show()
     plt.draw()
     fig1.savefig('test.png', dpi=100)
-
-
 
     # Create grid object
     grid = Grid2D(config, (transition_func, decaygrid, initial_terrain, smoothed_topology, count))
