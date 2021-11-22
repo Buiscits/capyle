@@ -22,7 +22,7 @@ import math
 from matplotlib import pyplot as plt
 from scipy.ndimage.filters import gaussian_filter
 
-def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_terrain, topology_grid, generation_array, plane_params):
+def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_terrain, topology_grid, generation_array, plane_params, wind_params):
 
 
     generation_array[0] += 1
@@ -190,7 +190,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         lightning_strike()
 
     # Plane
-    # plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction_vector, plane_drop_rate, plane_tank, plane_start_gen])
+    # plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction, plane_drop_rate, plane_tank, plane_start_gen, plane_height], dtype=object)
     if generation_array[0] >= plane_params[5]:
 
         # Check if it is time to drop the water
@@ -241,8 +241,28 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         if len(range_x) == 0 or len(range_y) == 0: #or len(range_x) != len(range_y):
             return grid
 
+        """
+        wind_speed = 0.1x§x§
+        wind_direction = [0,0]
+        wind_params = np.array([wind_speed, wind_direction])
+        """
+
+        #grid[np.ix_(range_y, range_x)] = 3
+
+        # Apply Wind
+        range_y = range_y + int(math.sin(wind_params[1][0]) * wind_params[0])
+        range_x = range_x + int(math.cos(wind_params[1][1]) * wind_params[0])
+
+        # Apply terrain
+
+
         # Mark cells that the plane flew over as water cells
         grid[np.ix_(range_y, range_x)] = 1
+
+
+
+
+
 
     return grid
 
@@ -356,21 +376,28 @@ def main():
     plt.draw()
     fig1.savefig('test.png', dpi=100)
 
-    # Plane Drop
+
+    # Wind
+    wind_speed = 10
+    wind_direction = [0,0.45]
+    wind_params = np.array([wind_speed, wind_direction], dtype=object)
+    
+    # Plane
     drop_start_pos = (100, 100)
     plane_current_pos = drop_start_pos
 
     # 0 = North, 90 = East
-    plane_direction = 299
+    plane_direction = 45
 
     plane_drop_rate = 10
     plane_tank = 12.5
     plane_start_gen = 0
+    plane_height = 10 #km
     
-    plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction, plane_drop_rate, plane_tank, plane_start_gen], dtype=object)
+    plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction, plane_drop_rate, plane_tank, plane_start_gen, plane_height], dtype=object)
 
     # Create grid object
-    grid = Grid2D(config, (transition_func, decaygrid, initial_terrain, smoothed_topology, np.array([0]), plane_params))
+    grid = Grid2D(config, (transition_func, decaygrid, initial_terrain, smoothed_topology, np.array([0]), plane_params, wind_params))
 
     # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
