@@ -23,8 +23,13 @@ from matplotlib import pyplot as plt
 from scipy.ndimage.filters import gaussian_filter
      
 
-def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_terrain, topology_grid, generation_array, plane_params, wind_params):
+def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_terrain, topology_grid, generation_array, plane_params, wind_params, grid_dims):
+
+    # Keeps track of generations
     generation_array[0] += 1
+
+    grid_height = grid_dims[1]
+    grid_width = grid_dims[0]
 
     terrain_fire_rates = {0: 0.05, 1: 0, 2: 0.05, 3: 1, 4: 0, 5: 0}
 
@@ -44,12 +49,12 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         if distance_x < 0:
             distance_x *= -1
         elif distance_x > 0:
-            distance_x = 200 - distance_x
+            distance_x = grid_width - distance_x
 
         if distance_y < 0:
             distance_y *= -1
         elif distance_y > 0:
-            distance_y = 200 - distance_y
+            distance_y = grid_height - distance_y
 
         relative_dist_x = random.randint(0, int(distance_x * (wind_speed / 25)))
         relative_dist_y = random.randint(0, int(distance_y * (wind_speed / 25)))
@@ -77,12 +82,11 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
             decide = decision(p_h * (1 + p_veg) * (1 + p_den))
             return decide
 
-        wind_probabilities = probability_p_w([1, 0], 5.0, fire_direction(x, y))
+        wind_probabilities = probability_p_w(wind_params[0], wind_params[1], fire_direction(x, y))
+
         p_s = calculate_slope_fire_spread_probability(x, y)
 
         decide = False
-
-        p_s = calculate_slope_fire_spread_probability(x, y)
 
         for p_w in wind_probabilities:
             if terrain == 0:
@@ -114,7 +118,6 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
 
         # Calculate final fire rate probability due to elevation
         neighbour_terrain_fire_spread_probabilities = calculate_terrain_spread_probabilities(row, column)
-        #print("MAX: ", max(neighbour_terrain_fire_spread_probabilities))
         # See if slope small enough to make block catch fire
         on_fire_threshold = 0.1
         cells_that_should_spread_fire = np.array(neighbour_terrain_fire_spread_probabilities) < on_fire_threshold
@@ -162,7 +165,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         relative_fire_coordinates = []
         for x in [-1, 0, 1]:
             for y in [-1, 0, 1]:
-                if cell_x + x < 200 and cell_y + y < 200:
+                if cell_x + x < grid_width and cell_y + y < grid_height:
                     if grid[cell_x + x][cell_y + y] == 5 and grid[cell_x][cell_y] != 5:
                         relative_fire_coordinates.append((x, y))
 
@@ -225,14 +228,11 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         new_plane_pos_y = int(old_plane_pos_y + math.sin(plane_angle) * 2)
 
         # Check if new pos it out of the grid
-        if new_plane_pos_y >= 200 or new_plane_pos_y < 0:
-            
+        if new_plane_pos_y >= grid_height or new_plane_pos_y < 0:
             return grid
 
-        if new_plane_pos_x >= 200 or new_plane_pos_x < 0:
-            
+        if new_plane_pos_x >= grid_width or new_plane_pos_x < 0:
             return grid
-
 
         # Update the new plane position
         plane_params[0] = (new_plane_pos_x, new_plane_pos_y)
@@ -241,13 +241,13 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         plane_params[4] -= 0.5
 
         # Calculate cells that the plane flies over
-        range_y = np.arange(old_plane_pos_y, new_plane_pos_y)
+        range_y = np.arange(old_plane_pos_y, new_plane_pos_y + 1)
         if old_plane_pos_y >= new_plane_pos_y:
-            range_y = np.arange(new_plane_pos_y, old_plane_pos_y)
+            range_y = np.arange(new_plane_pos_y, old_plane_pos_y + 1)
 
-        range_x = np.arange(old_plane_pos_x, new_plane_pos_x)
+        range_x = np.arange(old_plane_pos_x, new_plane_pos_x + 1)
         if old_plane_pos_x >= new_plane_pos_x:
-            range_x = np.arange(new_plane_pos_x, old_plane_pos_x)
+            range_x = np.arange(new_plane_pos_x, old_plane_pos_x + 1)
 
         if old_plane_pos_x == new_plane_pos_x:  
             range_x = np.concatenate((np.array([old_plane_pos_x]), range_x))
@@ -258,20 +258,15 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         if len(range_x) == 0 or len(range_y) == 0: #or len(range_x) != len(range_y):
             return grid
 
-        """
-        wind_speed = 0.1x§x§
-        wind_direction = [0,0]
-        wind_params = np.array([wind_speed, wind_direction])
-        """
-
-        #grid[np.ix_(range_y, range_x)] = 3
-
         # Apply Wind
-        range_y = range_y + int(math.sin(wind_params[1][0]) * wind_params[0])
-        range_x = range_x + int(math.cos(wind_params[1][1]) * wind_params[0])
+        range_y = range_y + int(math.sin(wind_params[0][0]) * wind_params[1])
+        range_x = range_x + int(math.cos(wind_params[0][1]) * wind_params[1])
 
-        # Apply terrain
+        if min(list(range_x)) < 0 or max(list(range_x)) >= grid_width:
+            return grid
 
+        if min(list(range_y)) < 0 or max(list(range_y)) >= grid_height:
+            return grid
 
         # Mark cells that the plane flew over as water cells
         grid[np.ix_(range_y, range_x)] = 1
@@ -386,7 +381,6 @@ def main():
 
     # Initialise topology Grid
     max_height = 100
- 
     noise = np.random.normal(0, max_height, size=config.grid_dims)
     topology_grid = abs(noise).astype(int)
     smoothed_topology = gaussian_filter(topology_grid, sigma=10)
@@ -401,9 +395,9 @@ def main():
 
 
     # Wind
-    wind_speed = 10
-    wind_direction = [0,0.45]
-    wind_params = np.array([wind_speed, wind_direction], dtype=object)
+    wind_speed = 0.2
+    wind_direction = [0,-1]
+    wind_params = np.array([wind_direction, wind_speed], dtype=object)
     
     # Plane
     drop_start_pos = (100, 100)
@@ -420,7 +414,7 @@ def main():
     plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction, plane_drop_rate, plane_tank, plane_start_gen, plane_height], dtype=object)
 
     # Create grid object
-    grid = Grid2D(config, (transition_func, decaygrid, initial_terrain, smoothed_topology, generation_count, plane_params, wind_params))
+    grid = Grid2D(config, (transition_func, decaygrid, initial_terrain, smoothed_topology, generation_count, plane_params, wind_params, config.grid_dims))
     
     # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
