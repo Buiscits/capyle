@@ -23,7 +23,7 @@ from matplotlib import pyplot as plt
 from scipy.ndimage.filters import gaussian_filter
      
 
-def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_terrain, topology_grid, generation_array, plane_params, wind_params, grid_dims):
+def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_terrain, topology_grid, generation_array, plane_params, wind_params, grid_dims, max_cells_we_can_fill_with_water):
 
     # Keeps track of generations
     generation_array[0] += 1
@@ -210,14 +210,16 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
     grid[burnable_cells] = 5
 
     # Plane
-    # plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction, plane_drop_rate, plane_tank, plane_start_gen, plane_height], dtype=object)
-    if generation_array[0] >= plane_params[5]:
+    #plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction, plane_start_gen, plane_height, cells_plane_already_dropped_water_on], dtype=object)
+    if generation_array[0] >= plane_params[3]:
 
-        # Check if it is time to drop the water
-        if plane_params[4] < 0:
+        #print("PP5: ", len(plane_params[5]))
+
+        # Check if plane is out of water
+        if len(plane_params[5]) >= max_cells_we_can_fill_with_water:
             return grid
 
-        time_step_diff = generation_array[0] - plane_params[5]
+        time_step_diff = generation_array[0] - plane_params[3]
 
         old_plane_pos_x = plane_params[0][0]
         old_plane_pos_y = plane_params[0][1]
@@ -236,9 +238,6 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
 
         # Update the new plane position
         plane_params[0] = (new_plane_pos_x, new_plane_pos_y)
-
-        # Drop some water from the planes tank
-        plane_params[4] -= 0.5
 
         # Calculate cells that the plane flies over
         range_y = np.arange(old_plane_pos_y, new_plane_pos_y + 1)
@@ -261,7 +260,11 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         # Apply Wind
         range_y = range_y + int(math.sin(wind_params[0][0]) * wind_params[1])
         range_x = range_x + int(math.cos(wind_params[0][1]) * wind_params[1])
+        
+        #plane_params[5].update(list(range_x.tolist()))
+        #plane_params[5].update(list(range_y.tolist()))
 
+        # Check if any coords are out of bounds
         if min(list(range_x)) < 0 or max(list(range_x)) >= grid_width:
             return grid
 
@@ -272,8 +275,17 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         grid[np.ix_(range_y, range_x)] = 1
 
 
+        # Log the cells that have had water dropped on them
+        indexes = np.ix_(range_y.tolist(), range_x.tolist())
+
+        r,c = np.meshgrid(*indexes)
+        out = np.column_stack((r.ravel('F'), c.ravel('F') ))
+    
+        plane_params[5].update(set(list(map(lambda x: (x[0], x[1]), out.tolist()))))
+    
+
     if decision(0.01):
-        spotting(find_random_burning_cell(burning_array), [1, 0], 20)
+        spotting(find_random_burning_cell(burning_array), wind_params[0], wind_params[1])
     if decision(0.01):
         lightning_strike()
 
@@ -305,7 +317,7 @@ def setup(args):
     grid_width = 200
 
     config.grid_dims = (grid_width, grid_height)
-    config.num_generations = 25
+    config.num_generations = 200
 
     def draw_terrain():
         rows, cols = config.grid_dims
@@ -399,22 +411,28 @@ def main():
     wind_direction = [0,-1]
     wind_params = np.array([wind_direction, wind_speed], dtype=object)
     
+    # Amount of water we can drop from the plane
+    max_cells_we_can_fill_with_water = int(12_500_000 / ((50000 / config.grid_dims[0]) ** 2))
+    print("MAX: ", max_cells_we_can_fill_with_water)
+
     # Plane
-    drop_start_pos = (100, 100)
+    drop_start_pos = (20, 199)
     plane_current_pos = drop_start_pos
 
     # 0 = North, 90 = East
-    plane_direction = 45
+    plane_direction = 70
 
-    plane_drop_rate = 10
-    plane_tank = 12.5
     plane_start_gen = 0
     plane_height = 10 #km
+
+    # Measure in number of cells
+    cells_plane_already_dropped_water_on = set()
+
     
-    plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction, plane_drop_rate, plane_tank, plane_start_gen, plane_height], dtype=object)
+    plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction, plane_start_gen, plane_height, cells_plane_already_dropped_water_on], dtype=object)
 
     # Create grid object
-    grid = Grid2D(config, (transition_func, decaygrid, initial_terrain, smoothed_topology, generation_count, plane_params, wind_params, config.grid_dims))
+    grid = Grid2D(config, (transition_func, decaygrid, initial_terrain, smoothed_topology, generation_count, plane_params, wind_params, config.grid_dims, max_cells_we_can_fill_with_water))
     
     # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
