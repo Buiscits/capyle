@@ -22,6 +22,7 @@ import math
 from matplotlib import pyplot as plt
 from scipy.ndimage.filters import gaussian_filter
 
+
 def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_terrain, topology_grid, count):
     count[0] = count[0] + 1
 
@@ -36,10 +37,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         lower_lake_y1, lower_lake_y2 = rows-int(0.35*rows), rows-int(0.3*rows)
 
         x, y = (random.randint(0, 199), random.randint(0, 199))
-        # test values
-        # x, y = 35, 65
-        # x, y = 100, 100
-        
+
         # check if generate coordinates are in water, if so then lightning has no effect
         if ((upper_lake_x1 <= x <= upper_lake_x2 and upper_lake_y1 <= y <= upper_lake_y2) or 
             (lower_lake_x1 <= x <= lower_lake_x2 and lower_lake_y1 <= y <= lower_lake_y2)):
@@ -65,23 +63,14 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         elif distance_y > 0:
             distance_y = 200 - distance_y
 
-        print(x, y, distance_x, distance_y)
-
-
         relative_dist_x = random.randint(0, int(distance_x * (wind_speed / 25)))
         relative_dist_y = random.randint(0, int(distance_y * (wind_speed / 25)))
-
-        print('relative distance')
-        print(relative_dist_x, relative_dist_y)
 
         x = x + relative_dist_x*wind_direction[0]
         y = y + relative_dist_y*wind_direction[1]
 
-        print('spotted cell')
-        print(x, y)
-        if probability_p_burn(y, x):
-            print('pavyko!!!!!1')
-        grid[y][x] = 5
+        if probability_p_burn(y, x, spotted=True):
+            grid[y][x] = 5
 
 
 
@@ -89,15 +78,24 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
     def decision(probability):
         return random.random() < probability
     
-    def probability_p_burn(x, y):
-
+    def probability_p_burn(x, y, spotted=False, lighting=False):
         terrain = grid[x][y]
+        p_h, p_veg, p_den, p_w, p_s = (0, 0, 0, 0.0, 0)
+
+        if spotted or lighting:
+            if terrain == 0:
+                p_h, p_veg, p_den = (0.5, 0.5, 0.5)
+            elif terrain == 2:
+                p_h, p_veg, p_den = (0.05, 0.05, 0.05)
+            elif terrain == 3:
+                p_h, p_veg, p_den = (1, 1, 1)
+            decide = decision(p_h * (1 + p_veg) * (1 + p_den))
+            return decide
 
         wind_probabilities = probability_p_w([1, 0], 5.0, fire_direction(x, y))
-        p_h, p_veg, p_den, p_w, p_s = (0, 0, 0, 0.0, 0)
-        decide = False
-
         p_s = calculate_slope_fire_spread_probability(x, y)
+
+        decide = False
 
         for p_w in wind_probabilities:
             if terrain == 0:
@@ -114,6 +112,8 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         return decide
 
     def probability_p_w(wind_direction, wind_speed, relative_fire_coordinates):
+        x_vect, y_vect = wind_direction
+        wind_direction = (y_vect, x_vect*(-1))
         wind_probabilities = []
 
         for fire_direction in relative_fire_coordinates:
@@ -175,8 +175,9 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         relative_fire_coordinates = []
         for x in [-1, 0, 1]:
             for y in [-1, 0, 1]:
-                if grid[cell_x + x][cell_y + y] == 5 and grid[cell_x][cell_y] != 5:
-                    relative_fire_coordinates.append((x, y))
+                if cell_x + x < 200 and cell_y + y < 200:
+                    if grid[cell_x + x][cell_y + y] == 5 and grid[cell_x][cell_y] != 5:
+                        relative_fire_coordinates.append((x, y))
 
         return relative_fire_coordinates
 
@@ -219,10 +220,10 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
     grid[decayed_to_burned_land] = 4
     grid[burnable_cells] = 5
 
-    if decision(1):
-        spotting(find_random_burning_cell(burning_array), [0, -1], 20)
-    # if decision(0.01):
-    #     lightning_strike()
+    if decision(0.01):
+        spotting(find_random_burning_cell(burning_array), [1, 0], 20)
+    if decision(0.01):
+        lightning_strike()
 
     return grid
 
