@@ -33,7 +33,6 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         if probability_p_burn(y, x, lighting=True):
             grid[y][x] = 5
 
-
     def find_random_burning_cell(array):
         (burning_x, burning_y) = random.choice(array)
         return burning_x, burning_y
@@ -239,7 +238,7 @@ def setup(args):
     grid_width = 200
 
     config.grid_dims = (grid_width, grid_height)
-    config.num_generations = 100
+    config.num_generations = 25
 
     def draw_terrain():
         rows, cols = config.grid_dims
@@ -253,6 +252,10 @@ def setup(args):
         y1, y2 = rows-int(0.65*rows), rows-int(0.645*rows)
         arr[y1:y2, x1:x2] = 5
 
+        #add Power plant
+        x1, x2 = int(0.9*cols), int(0.905*cols)
+        y1, y2 = rows - int(0.65*rows), rows-int(0.645*rows)
+        arr[y1:y2, x1:x2] = 4
 
         # add lakes
         x1, x2 = int(0.15*cols), int(0.2*cols)
