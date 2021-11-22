@@ -193,11 +193,12 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
     # plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction_vector, plane_drop_rate, plane_tank, plane_start_gen])
     if generation_array[0] >= plane_params[5]:
 
+        # Check if it is time to drop the water
         if plane_params[4] < 0:
             return grid
 
         time_step_diff = generation_array[0] - plane_params[5]
-        
+
         old_plane_pos_x = plane_params[0][0]
         old_plane_pos_y = plane_params[0][1]
 
@@ -359,6 +360,7 @@ def main():
     drop_start_pos = (100, 100)
     plane_current_pos = drop_start_pos
 
+    # 0 = North, 90 = East
     plane_direction = 299
 
     plane_drop_rate = 10
