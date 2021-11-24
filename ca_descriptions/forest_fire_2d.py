@@ -35,7 +35,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
     terrain_fire_rates = {0: 0.05, 1: 0, 2: 0.05, 3: 1, 4: 0, 5: 0, 6: 0.05, 7: 0.05, 8: 0.05}
 
     def lightning_strike():
-        x, y = (random.randint(0, 199), random.randint(0, 199))
+        x, y = (random.randint(0, grid_dims[0] - 1), random.randint(0, grid_dims[1] - 1))
         if probability_p_burn(y, x, lighting=True):
             grid[y][x] = 5
 
@@ -347,11 +347,11 @@ def setup(args):
 
     grid_sizes = [(50, 50), (200, 200), (500, 500)]
 
-    config.grid_dims = grid_sizes[0]
+    config.grid_dims = grid_sizes[2]
     config.num_generations = 25
 
     # 0 is flat, 1 is height = 10, 2 is height = 100
-    config.terrain_type = 2
+    config.terrain_type = 0
 
     def draw_terrain():
         rows, cols = config.grid_dims
@@ -468,7 +468,7 @@ def main():
     max_cells_we_can_fill_with_water = int(12_500_000 / ((50000 / config.grid_dims[0]) ** 2))
 
     ## Plane
-    drop_start_pos = (50, 50)
+    drop_start_pos = (25, 25)
     plane_current_pos = drop_start_pos
 
     # 0 = North, 90 = East
