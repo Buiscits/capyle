@@ -399,9 +399,10 @@ def main():
         smoothed_topology = np.loadtxt("topology_" + str(topology_type) + "_" + str(config.grid_dims) + ".txt", dtype=int)
         
     
-    #options = [(1, (50, 50)), (1, (200, 200)), (1, (500, 500)), (2, (50, 50)), (2, (200, 200)), (2, (500, 500))]
-    options = [(2, (50, 50))]
-
+    
+    # Code to generate random terrains # DONT REMOVE
+    """
+    options = [(1, (50, 50)), (1, (200, 200)), (1, (500, 500)), (2, (50, 50)), (2, (200, 200)), (2, (500, 500))]
     for option in options:
 
         max_height = 10 if option[0] == 1 else 100
@@ -421,7 +422,7 @@ def main():
         plt.draw()
         fig1.savefig("topology_" + str(option[0]) + "_" + str(option[1]) + "_image.png", dpi=100)
     
-
+    """
 
     ## Wind
     wind_speed = 0.2
