@@ -23,7 +23,7 @@ from matplotlib import pyplot as plt
 from scipy.ndimage.filters import gaussian_filter
      
 
-def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_terrain, topology_grid, generation_array, plane_params, wind_params, grid_dims, max_cells_we_can_fill_with_water):
+def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_terrain, topology_grid, generation_array, plane_params, wind_params, grid_dims, max_cells_we_can_fill_with_water, fire_slope_probability):
 
     # Keeps track of generations
     generation_array[0] += 1
@@ -133,8 +133,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         # Calculate final fire rate probability due to elevation
         neighbour_terrain_fire_spread_probabilities = calculate_terrain_spread_probabilities(row, column)
         # See if slope small enough to make block catch fire
-        on_fire_threshold = 0.1
-        cells_that_should_spread_fire = np.array(neighbour_terrain_fire_spread_probabilities) < on_fire_threshold
+        cells_that_should_spread_fire = np.array(neighbour_terrain_fire_spread_probabilities) < fire_slope_probability
 
         #print("LEN:", (cells_that_should_spread_fire == True).size / 8)
         return (cells_that_should_spread_fire == True).size / 8
@@ -425,6 +424,8 @@ def main():
     decaygrid = np.zeros(config.grid_dims)
     decaygrid.fill(2)
 
+
+    fire_slope_probability = 0.5
     
     # Initialise topology Grid
     topology_type = config.terrain_type
@@ -483,7 +484,7 @@ def main():
     plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction, plane_start_gen, plane_height, cells_plane_already_dropped_water_on], dtype=object)
 
     # Create grid object
-    grid = Grid2D(config, (transition_func, decaygrid, initial_terrain, smoothed_topology, generation_count, plane_params, wind_params, config.grid_dims, max_cells_we_can_fill_with_water))
+    grid = Grid2D(config, (transition_func, decaygrid, initial_terrain, smoothed_topology, generation_count, plane_params, wind_params, config.grid_dims, max_cells_we_can_fill_with_water, fire_slope_probability))
     
     # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
