@@ -32,7 +32,16 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
     grid_height = grid_dims[1]
     grid_width = grid_dims[0]
 
-    terrain_fire_rates = {0: 0.05, 1: 0, 2: 0.05, 3: 1, 4: 0, 5: 0, 6: 0.05, 7: 0.05, 8: 0.05}
+    
+    # (0, 1, 2, 3, 4, 5, 6, 7, 8)
+    # chaparral_color, lake_color, dense_forest_color, scrubland_color, town_color,
+    #fire_color, watered_chaparral_color, watered_dense_forrest_color,
+    #                                watered_scrubland_color]
+    # { terrain_type: (p_veg, p_den) }
+    terrain_fire_rates = {0: (0.1, 0), 1: (0, 0), 2: (-0.3, 0.3), 3: (0.4, 0), 4: (0, 0), 5: (0, 0), 6: (0.1, 0), 7: (-0.3, 0.3), 8: (0.4, 0)}
+
+    wet_fire_rate = 0.01
+    propagation_constant = 0.58
 
     def lightning_strike():
         x, y = (random.randint(0, grid_dims[0] - 1), random.randint(0, grid_dims[1] - 1))
@@ -70,22 +79,17 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         return random.random() < probability
     
     def probability_p_burn(x, y, spotted=False, lighting=False):
+
         terrain = grid[x][y]
-        p_h, p_veg, p_den, p_w, p_s, p_we = (0, 0, 0, 0, 0, 1)
+
+        p_h, p_veg, p_den, p_w, p_s, p_we = (0, 0, 0, 0, 0, 0)
 
         if spotted or lighting:
-            if terrain == 0:
-                p_h, p_veg, p_den = (0.5, 0.5, 0.5)
-            elif terrain == 2:
-                p_h, p_veg, p_den = (0.05, 0.05, 0.05)
-            elif terrain == 3:
-                p_h, p_veg, p_den = (1, 1, 1)
-            elif terrain == 6:
-                p_h, p_veg, p_den, p_we = (0.5, 0.5, 0.5, 0.1)
-            elif terrain == 7:
-                p_h, p_veg, p_den, p_we = (0.5, 0.5, 0.5, 0.1)
-            elif terrain == 8:
-                p_h, p_veg, p_den, p_we = (1, 1, 1, 0.1)
+
+            if terrain == 0 or terrain == 2 or terrain == 3:
+                p_h, p_veg, p_den = (propagation_constant, terrain_fire_rates[terrain][0], terrain_fire_rates[terrain][1])
+            elif terrain == 6 or terrain == 7 or terrain == 8:
+                p_h, p_veg, p_den, p_we = (propagation_constant, terrain_fire_rates[terrain][0], terrain_fire_rates[terrain][1], wet_fire_rate)
 
             decide = decision(p_h * (1 + p_veg) * (1 + p_den) * p_we)
             return decide
@@ -97,20 +101,14 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         decide = False
 
         for p_w in wind_probabilities:
-            if terrain == 0:
-                p_h, p_veg, p_den, p_s = (0.5, 0.5, 0.5, p_s)
-            elif terrain == 2:
-                p_h, p_veg, p_den, p_s = (0.05, 0.05, 0.05, p_s)
-            elif terrain == 3:
-                p_h, p_veg, p_den, p_s = (1, 1, 1, 1)
-            elif terrain == 6:
-                p_h, p_veg, p_den, p_s, p_we = (0.5, 0.5, 0.5, p_s, 0.1)
-            elif terrain == 7:
-                p_h, p_veg, p_den, p_s, p_we = (0.05, 0.05, 0.05, p_s, 0.1)
-            elif terrain == 8:
-                p_h, p_veg, p_den, p_s, p_we = (1, 1, 1, 1, 0.1)
+
+            if terrain == 0 or terrain == 2 or terrain == 3:
+                p_h, p_veg, p_den = (propagation_constant, terrain_fire_rates[terrain][0], terrain_fire_rates[terrain][1])
+            elif terrain == 6 or terrain == 7 or terrain == 8:
+                p_h, p_veg, p_den, p_we = (propagation_constant, terrain_fire_rates[terrain][0], terrain_fire_rates[terrain][1], wet_fire_rate)
 
             decide = decision(p_h * (1 + p_veg) * (1 + p_den) * p_w * p_s * p_we)
+
             if decide:
                 break
 
@@ -135,7 +133,6 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         # See if slope small enough to make block catch fire
         cells_that_should_spread_fire = np.array(neighbour_terrain_fire_spread_probabilities) < fire_slope_probability
 
-        #print("LEN:", (cells_that_should_spread_fire == True).size / 8)
         return (cells_that_should_spread_fire == True).size / 8
 
     def calculate_terrain_spread_probabilities(row, column):
@@ -185,7 +182,6 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         return relative_fire_coordinates
 
     np.seterr(invalid='ignore')  # ignores warnings lol
-    #grid[y axis][x axis]
 
     # cells that can catch fire: chaparral, forest, scrubland and have a neighbour thats on fire
     burnable_cells = (((grid == 0) | (grid == 2) | (grid == 3) | (grid == 6) | (grid == 7) | (grid == 8))
@@ -346,11 +342,11 @@ def setup(args):
 
     grid_sizes = [(50, 50), (200, 200), (500, 500)]
 
-    config.grid_dims = grid_sizes[2]
-    config.num_generations = 25
+    config.grid_dims = grid_sizes[1]
+    config.num_generations = 500
 
     # 0 is flat, 1 is height = 10, 2 is height = 100
-    config.terrain_type = 0
+    config.terrain_type = 1
 
     def draw_terrain():
         rows, cols = config.grid_dims
@@ -359,7 +355,7 @@ def setup(args):
         arr = [[0] * cols] * rows
         arr = np.array(arr)
 
-        #add fire
+        #add fire / incinerator
         x1, x2 = int(0.08*cols), int(math.ceil(0.085*cols))
         y1, y2 = rows-int(math.ceil(0.65*rows)), rows-int(0.645*rows)
         arr[y1:y2, x1:x2] = 5
