@@ -38,12 +38,13 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
     #fire_color, watered_chaparral_color, watered_dense_forrest_color,
     #                                watered_scrubland_color]
     # { terrain_type: (p_veg, p_den) }
-    terrain_fire_rates = {0: (0.1, 0), 1: (0, 0), 2: (-0.3, 0.3), 3: (0.4, 0), 4: (0, 0), 5: (0, 0), 6: (0.1, 0), 7: (-0.3, 0.3), 8: (0.4, 0)}
+    terrain_fire_rates = {0: (0.1, 0), 1: (0, 0), 2: (-0.9, 0.3), 3: (0.9, 0), 4: (0, 0), 5: (0, 0), 6: (0.1, 0), 7: (-0.9, 0.3), 8: (0.9, 0)}
 
     wet_fire_rate = 0.01
     propagation_constant = 0.58
 
     def lightning_strike():
+        print('lightning')
         x, y = (random.randint(0, grid_dims[0] - 1), random.randint(0, grid_dims[1] - 1))
         if probability_p_burn(y, x, lighting=True):
             grid[y][x] = 5
@@ -53,6 +54,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         return burning_x, burning_y
 
     def spotting(burning_cell, wind_direction, wind_speed):
+        print('spotting')
         x, y = burning_cell
         distance_x, distance_y = x*wind_direction[0], y*wind_direction[1]
 
@@ -101,7 +103,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         decide = False
 
         for p_w in wind_probabilities:
-
+            print(p_w)
             if terrain == 0 or terrain == 2 or terrain == 3:
                 p_h, p_veg, p_den = (propagation_constant, terrain_fire_rates[terrain][0], terrain_fire_rates[terrain][1])
             elif terrain == 6 or terrain == 7 or terrain == 8:
@@ -343,7 +345,7 @@ def setup(args):
     grid_sizes = [(50, 50), (200, 200), (500, 500)]
 
     config.grid_dims = grid_sizes[1]
-    config.num_generations = 25
+    config.num_generations = 300
 
     # 0 is flat, 1 is height = 10, 2 is height = 100
     config.terrain_type = 1
@@ -457,15 +459,15 @@ def main():
     """
 
     ## Wind
-    wind_speed = 0.2
-    wind_direction = [0,-1]
+    wind_speed = 2.5
+    wind_direction = [1, 1]
     wind_params = np.array([wind_direction, wind_speed], dtype=object)
     
     ## Amount of water we can drop from the plane
     max_cells_we_can_fill_with_water = int(12_500_000 / ((50000 / config.grid_dims[0]) ** 2))
 
     ## Plane
-    drop_start_pos = (25, 25)
+    drop_start_pos = (50, 50)
     plane_current_pos = drop_start_pos
 
     # 0 = North, 90 = East
