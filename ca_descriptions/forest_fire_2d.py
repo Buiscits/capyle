@@ -82,7 +82,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
 
         terrain = grid[x][y]
 
-        p_h, p_veg, p_den, p_w, p_s, p_we = (0, 0, 0, 0, 0, 0)
+        p_h, p_veg, p_den, p_w, p_s, p_we = (0, 0, 0, 0, 0, 1)
 
         if spotted or lighting:
 
@@ -159,7 +159,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
 
         slopes = [up_slope, down_slope, left_slope, right_slope, top_left_slope, top_right_slope, bottom_left_slope, bottom_right_slope]
 
-        fire_probabilities = list(map(lambda x: terrain_fire_rates[x[0]] * math.exp(1 * x[1]), slopes))
+        fire_probabilities = list(map(lambda x: terrain_fire_rates[x[0]][1] * math.exp(1 * x[1]), slopes))
 
         return fire_probabilities
     
@@ -343,7 +343,7 @@ def setup(args):
     grid_sizes = [(50, 50), (200, 200), (500, 500)]
 
     config.grid_dims = grid_sizes[1]
-    config.num_generations = 500
+    config.num_generations = 25
 
     # 0 is flat, 1 is height = 10, 2 is height = 100
     config.terrain_type = 1
