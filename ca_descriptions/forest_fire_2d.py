@@ -27,11 +27,17 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
 
     # Keeps track of generations
     generation_array[0] += 1
+<<<<<<< HEAD
+
+    grid_height = grid_dims[1]
+    grid_width = grid_dims[0]
+=======
+>>>>>>> 4d2e4ab51b44b5ea5a5437e6f762cc3efce1df93
 
     grid_height = grid_dims[1]
     grid_width = grid_dims[0]
 
-    terrain_fire_rates = {0: 0.05, 1: 0, 2: 0.05, 3: 1, 4: 0, 5: 0}
+    terrain_fire_rates = {0: 0.05, 1: 0, 2: 0.05, 3: 1, 4: 0, 5: 0, 6: 0.05, 7: 0.05, 8: 0.05}
 
     def lightning_strike():
         x, y = (random.randint(0, 199), random.randint(0, 199))
@@ -70,7 +76,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
     
     def probability_p_burn(x, y, spotted=False, lighting=False):
         terrain = grid[x][y]
-        p_h, p_veg, p_den, p_w, p_s = (0, 0, 0, 0.0, 0)
+        p_h, p_veg, p_den, p_w, p_s, p_we = (0, 0, 0, 0, 0, 1)
 
         if spotted or lighting:
             if terrain == 0:
@@ -79,7 +85,14 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
                 p_h, p_veg, p_den = (0.05, 0.05, 0.05)
             elif terrain == 3:
                 p_h, p_veg, p_den = (1, 1, 1)
-            decide = decision(p_h * (1 + p_veg) * (1 + p_den))
+            elif terrain == 6:
+                p_h, p_veg, p_den, p_we = (0.5, 0.5, 0.5, 0.1)
+            elif terrain == 7:
+                p_h, p_veg, p_den, p_we = (0.5, 0.5, 0.5, 0.1)
+            elif terrain == 8:
+                p_h, p_veg, p_den, p_we = (1, 1, 1, 0.1)
+
+            decide = decision(p_h * (1 + p_veg) * (1 + p_den) * p_we)
             return decide
 
         wind_probabilities = probability_p_w(wind_params[0], wind_params[1], fire_direction(x, y))
@@ -95,8 +108,14 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
                 p_h, p_veg, p_den, p_s = (0.05, 0.05, 0.05, p_s)
             elif terrain == 3:
                 p_h, p_veg, p_den, p_s = (1, 1, 1, 1)
+            elif terrain == 6:
+                p_h, p_veg, p_den, p_s, p_we = (0.5, 0.5, 0.5, p_s, 0.1)
+            elif terrain == 7:
+                p_h, p_veg, p_den, p_s, p_we = (0.05, 0.05, 0.05, p_s, 0.1)
+            elif terrain == 8:
+                p_h, p_veg, p_den, p_s, p_we = (1, 1, 1, 1, 0.1)
 
-            decide = decision(p_h * (1 + p_veg) * (1 + p_den) * p_w * p_s)
+            decide = decision(p_h * (1 + p_veg) * (1 + p_den) * p_w * p_s * p_we)
             if decide:
                 break
 
@@ -175,7 +194,8 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
     #grid[y axis][x axis]
 
     # cells that can catch fire: chaparral, forest, scrubland and have a neighbour thats on fire
-    burnable_cells = (((grid == 0) | (grid == 2) | (grid == 3)) & (neighbourcounts[5] >= 1))
+    burnable_cells = (((grid == 0) | (grid == 2) | (grid == 3) | (grid == 6) | (grid == 7) | (grid == 8))
+                      & (neighbourcounts[5] >= 1))
 
     # cells that were burning in last time step
     burning_cells = (grid == 5)
@@ -184,8 +204,8 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
     decaygrid[burning_cells] -= 1
     # assigns the probability of each cell catching fire and then probabilistically decides if it will
     burning_array = []
-    for row in range(0, 199):
-        for col in range(0, 199):
+    for row in range(0, grid_height - 1):
+        for col in range(0, grid_width - 1):
             if grid[col][row] == 5:
                 burning_array.append((row, col))
             if row == 0 or col == 0 or burnable_cells[col][row] is False:
@@ -195,7 +215,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
 
     # prevents fire from spreading on the other side of the map
     burnable_cells[0] = False
-    burnable_cells[199] = False
+    burnable_cells[grid_height - 1] = False
 
     # for how many generations can certain terrain burn
     chaparral_burning_gen = -30
@@ -204,7 +224,10 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
 
     decayed_to_burned_land = (((decaygrid == chaparral_burning_gen) & (initial_terrain == 0))
                               | ((decaygrid == dense_forest_burning_gen) & (initial_terrain == 2))
-                              | ((decaygrid == scrubland_burning_gen) & (initial_terrain == 3)))
+                              | ((decaygrid == scrubland_burning_gen) & (initial_terrain == 3))
+                              | ((decaygrid == chaparral_burning_gen) & (initial_terrain == 6))
+                              | ((decaygrid == dense_forest_burning_gen) & (initial_terrain == 7))
+                              | ((decaygrid == scrubland_burning_gen) & (initial_terrain == 8)))
 
     grid[decayed_to_burned_land] = 4
     grid[burnable_cells] = 5
@@ -254,12 +277,22 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         if old_plane_pos_y == new_plane_pos_y:
             range_y = np.concatenate((np.array([old_plane_pos_y]), range_y))
 
+<<<<<<< HEAD
         if len(range_x) == 0 or len(range_y) == 0:
+=======
+        if len(range_x) == 0 or len(range_y) == 0: #or len(range_x) != len(range_y):
+>>>>>>> 4d2e4ab51b44b5ea5a5437e6f762cc3efce1df93
             return grid
 
         # Apply Wind
         range_y = range_y + int(math.sin(wind_params[0][0]) * wind_params[1])
         range_x = range_x + int(math.cos(wind_params[0][1]) * wind_params[1])
+<<<<<<< HEAD
+=======
+        
+        #plane_params[5].update(list(range_x.tolist()))
+        #plane_params[5].update(list(range_y.tolist()))
+>>>>>>> 4d2e4ab51b44b5ea5a5437e6f762cc3efce1df93
 
         # Check if any coords are out of bounds
         if min(list(range_x)) < 0 or max(list(range_x)) >= grid_width:
@@ -269,7 +302,23 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
             return grid
 
         # Mark cells that the plane flew over as water cells
+<<<<<<< HEAD
         grid[np.ix_(range_y, range_x)] = 1
+=======
+        for i in range(0, range_x.size):
+            if grid[range_y[i], range_x[i]] == 0:
+                grid[np.ix_(range_y, range_x)] = 6
+                break
+            elif grid[range_y[i], range_x[i]] == 2:
+                grid[np.ix_(range_y, range_x)] = 7
+                break
+            elif grid[range_y[i], range_x[i]] == 3:
+                grid[np.ix_(range_y, range_x)] = 8
+                break
+
+        # grid[np.ix_(range_y, range_x)] = 1
+
+>>>>>>> 4d2e4ab51b44b5ea5a5437e6f762cc3efce1df93
 
         # Log the cells that have had water dropped on them
         indexes = np.ix_(range_y.tolist(), range_x.tolist())
@@ -294,26 +343,39 @@ def setup(args):
     # ---THE CA MUST BE RELOADED IN THE GUI IF ANY OF THE BELOW ARE CHANGED---
     config.title = "Forest Fire Simulator"
     config.dimensions = 2
-    config.states = (0, 1, 2, 3, 4, 5)
+    config.states = (0, 1, 2, 3, 4, 5, 6, 7, 8)
     # ------------------------------------------------------------------------
 
     # ---- Override the defaults below (these may be changed at anytime) ----
     # color codes for each terrain property
 
     chaparral_color = (229, 208, 176)
+    watered_chaparral_color = (229, 208, 253)
     lake_color = (75, 182, 239)
     dense_forest_color = (70, 85, 82)
+    watered_dense_forrest_color = (70, 85, 193)
     scrubland_color = (151, 151, 96)
+    watered_scrubland_color = (151, 151, 255)
     town_color = (0, 0, 0)
     fire_color = (247, 55, 24)
 
-    config.state_colors = np.array([chaparral_color, lake_color, dense_forest_color, scrubland_color, town_color, fire_color])/255
+    config.state_colors = np.array([chaparral_color, lake_color, dense_forest_color, scrubland_color, town_color,
+                                    fire_color, watered_chaparral_color, watered_dense_forrest_color,
+                                    watered_scrubland_color])/255
 
+<<<<<<< HEAD
 
     grid_sizes = [(50, 50), (200, 200), (500, 500)]
 
     config.grid_dims = grid_sizes[0]
     config.num_generations = 25
+=======
+    grid_height = 50
+    grid_width = 50
+
+    config.grid_dims = (grid_width, grid_height)
+    config.num_generations = 10
+>>>>>>> 4d2e4ab51b44b5ea5a5437e6f762cc3efce1df93
 
     # 0 is flat, 1 is height = 10, 2 is height = 100
     config.terrain_type = 2
@@ -326,13 +388,13 @@ def setup(args):
         arr = np.array(arr)
 
         #add fire
-        x1, x2 = int(0.08*cols), int(0.085*cols)
-        y1, y2 = rows-int(0.65*rows), rows-int(0.645*rows)
+        x1, x2 = int(0.08*cols), int(math.ceil(0.085*cols))
+        y1, y2 = rows-int(math.ceil(0.65*rows)), rows-int(0.645*rows)
         arr[y1:y2, x1:x2] = 5
 
         #add Power plant
-        x1, x2 = int(0.9*cols), int(0.905*cols)
-        y1, y2 = rows - int(0.65*rows), rows-int(0.645*rows)
+        x1, x2 = int(0.9*cols), int(math.ceil(0.905*cols))
+        y1, y2 = rows - int(math.ceil(0.65*rows)), rows-int(0.645*rows)
         arr[y1:y2, x1:x2] = 4
 
         # add lakes
@@ -392,6 +454,7 @@ def main():
 
     
     # Initialise topology Grid
+<<<<<<< HEAD
     topology_type = config.terrain_type
 
     smoothed_topology = np.ones(config.grid_dims)
@@ -433,6 +496,32 @@ def main():
     max_cells_we_can_fill_with_water = int(12_500_000 / ((50000 / config.grid_dims[0]) ** 2))
 
     ## Plane
+=======
+    max_height = 100
+    noise = np.random.normal(0, max_height, size=config.grid_dims)
+    topology_grid = abs(noise).astype(int)
+    smoothed_topology = gaussian_filter(topology_grid, sigma=10)
+
+    # Graph and Save the topology grid as png
+    plt.imshow(smoothed_topology, cmap='hot', interpolation='nearest')
+    fig1 = plt.gcf()
+    plt.colorbar()
+    plt.show()
+    plt.draw()
+    fig1.savefig('test.png', dpi=100)
+
+
+    # Wind
+    wind_speed = 2.5
+    wind_direction = [1, 0]
+    wind_params = np.array([wind_direction, wind_speed], dtype=object)
+    
+    # Amount of water we can drop from the plane
+    max_cells_we_can_fill_with_water = int(12_500_000 / ((50000 / config.grid_dims[0]) ** 2))
+    print("MAX: ", max_cells_we_can_fill_with_water)
+
+    # Plane
+>>>>>>> 4d2e4ab51b44b5ea5a5437e6f762cc3efce1df93
     drop_start_pos = (50, 50)
     plane_current_pos = drop_start_pos
 
@@ -445,9 +534,15 @@ def main():
     # Measure in number of cells
     cells_plane_already_dropped_water_on = set()
 
+<<<<<<< HEAD
     plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction, plane_start_gen, plane_height, cells_plane_already_dropped_water_on], dtype=object)
 
 
+=======
+    
+    plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction, plane_start_gen, plane_height, cells_plane_already_dropped_water_on], dtype=object)
+
+>>>>>>> 4d2e4ab51b44b5ea5a5437e6f762cc3efce1df93
     # Create grid object
     grid = Grid2D(config, (transition_func, decaygrid, initial_terrain, smoothed_topology, generation_count, plane_params, wind_params, config.grid_dims, max_cells_we_can_fill_with_water))
     
