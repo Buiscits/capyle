@@ -218,7 +218,10 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
 
     decayed_to_burned_land = (((decaygrid == chaparral_burning_gen) & (initial_terrain == 0))
                               | ((decaygrid == dense_forest_burning_gen) & (initial_terrain == 2))
-                              | ((decaygrid == scrubland_burning_gen) & (initial_terrain == 3)))
+                              | ((decaygrid == scrubland_burning_gen) & (initial_terrain == 3))
+                              | ((decaygrid == chaparral_burning_gen) & (initial_terrain == 6))
+                              | ((decaygrid == dense_forest_burning_gen) & (initial_terrain == 7))
+                              | ((decaygrid == scrubland_burning_gen) & (initial_terrain == 8)))
 
     grid[decayed_to_burned_land] = 4
     grid[burnable_cells] = 5
@@ -347,7 +350,7 @@ def setup(args):
     grid_width = 50
 
     config.grid_dims = (grid_width, grid_height)
-    config.num_generations = 5
+    config.num_generations = 10
 
     def draw_terrain():
         rows, cols = config.grid_dims
