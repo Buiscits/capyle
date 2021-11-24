@@ -103,7 +103,6 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         decide = False
 
         for p_w in wind_probabilities:
-            print(p_w)
             if terrain == 0 or terrain == 2 or terrain == 3:
                 p_h, p_veg, p_den = (propagation_constant, terrain_fire_rates[terrain][0], terrain_fire_rates[terrain][1])
             elif terrain == 6 or terrain == 7 or terrain == 8:
