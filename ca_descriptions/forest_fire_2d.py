@@ -27,12 +27,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
 
     # Keeps track of generations
     generation_array[0] += 1
-<<<<<<< HEAD
 
-    grid_height = grid_dims[1]
-    grid_width = grid_dims[0]
-=======
->>>>>>> 4d2e4ab51b44b5ea5a5437e6f762cc3efce1df93
 
     grid_height = grid_dims[1]
     grid_width = grid_dims[0]
@@ -277,22 +272,12 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         if old_plane_pos_y == new_plane_pos_y:
             range_y = np.concatenate((np.array([old_plane_pos_y]), range_y))
 
-<<<<<<< HEAD
         if len(range_x) == 0 or len(range_y) == 0:
-=======
-        if len(range_x) == 0 or len(range_y) == 0: #or len(range_x) != len(range_y):
->>>>>>> 4d2e4ab51b44b5ea5a5437e6f762cc3efce1df93
             return grid
 
         # Apply Wind
         range_y = range_y + int(math.sin(wind_params[0][0]) * wind_params[1])
         range_x = range_x + int(math.cos(wind_params[0][1]) * wind_params[1])
-<<<<<<< HEAD
-=======
-        
-        #plane_params[5].update(list(range_x.tolist()))
-        #plane_params[5].update(list(range_y.tolist()))
->>>>>>> 4d2e4ab51b44b5ea5a5437e6f762cc3efce1df93
 
         # Check if any coords are out of bounds
         if min(list(range_x)) < 0 or max(list(range_x)) >= grid_width:
@@ -302,9 +287,6 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
             return grid
 
         # Mark cells that the plane flew over as water cells
-<<<<<<< HEAD
-        grid[np.ix_(range_y, range_x)] = 1
-=======
         for i in range(0, range_x.size):
             if grid[range_y[i], range_x[i]] == 0:
                 grid[np.ix_(range_y, range_x)] = 6
@@ -318,7 +300,6 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
 
         # grid[np.ix_(range_y, range_x)] = 1
 
->>>>>>> 4d2e4ab51b44b5ea5a5437e6f762cc3efce1df93
 
         # Log the cells that have had water dropped on them
         indexes = np.ix_(range_y.tolist(), range_x.tolist())
@@ -363,19 +344,11 @@ def setup(args):
                                     fire_color, watered_chaparral_color, watered_dense_forrest_color,
                                     watered_scrubland_color])/255
 
-<<<<<<< HEAD
 
     grid_sizes = [(50, 50), (200, 200), (500, 500)]
 
     config.grid_dims = grid_sizes[0]
     config.num_generations = 25
-=======
-    grid_height = 50
-    grid_width = 50
-
-    config.grid_dims = (grid_width, grid_height)
-    config.num_generations = 10
->>>>>>> 4d2e4ab51b44b5ea5a5437e6f762cc3efce1df93
 
     # 0 is flat, 1 is height = 10, 2 is height = 100
     config.terrain_type = 2
@@ -454,7 +427,6 @@ def main():
 
     
     # Initialise topology Grid
-<<<<<<< HEAD
     topology_type = config.terrain_type
 
     smoothed_topology = np.ones(config.grid_dims)
@@ -496,32 +468,6 @@ def main():
     max_cells_we_can_fill_with_water = int(12_500_000 / ((50000 / config.grid_dims[0]) ** 2))
 
     ## Plane
-=======
-    max_height = 100
-    noise = np.random.normal(0, max_height, size=config.grid_dims)
-    topology_grid = abs(noise).astype(int)
-    smoothed_topology = gaussian_filter(topology_grid, sigma=10)
-
-    # Graph and Save the topology grid as png
-    plt.imshow(smoothed_topology, cmap='hot', interpolation='nearest')
-    fig1 = plt.gcf()
-    plt.colorbar()
-    plt.show()
-    plt.draw()
-    fig1.savefig('test.png', dpi=100)
-
-
-    # Wind
-    wind_speed = 2.5
-    wind_direction = [1, 0]
-    wind_params = np.array([wind_direction, wind_speed], dtype=object)
-    
-    # Amount of water we can drop from the plane
-    max_cells_we_can_fill_with_water = int(12_500_000 / ((50000 / config.grid_dims[0]) ** 2))
-    print("MAX: ", max_cells_we_can_fill_with_water)
-
-    # Plane
->>>>>>> 4d2e4ab51b44b5ea5a5437e6f762cc3efce1df93
     drop_start_pos = (50, 50)
     plane_current_pos = drop_start_pos
 
@@ -534,15 +480,8 @@ def main():
     # Measure in number of cells
     cells_plane_already_dropped_water_on = set()
 
-<<<<<<< HEAD
     plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction, plane_start_gen, plane_height, cells_plane_already_dropped_water_on], dtype=object)
 
-
-=======
-    
-    plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction, plane_start_gen, plane_height, cells_plane_already_dropped_water_on], dtype=object)
-
->>>>>>> 4d2e4ab51b44b5ea5a5437e6f762cc3efce1df93
     # Create grid object
     grid = Grid2D(config, (transition_func, decaygrid, initial_terrain, smoothed_topology, generation_count, plane_params, wind_params, config.grid_dims, max_cells_we_can_fill_with_water))
     
