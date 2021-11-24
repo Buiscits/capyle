@@ -343,11 +343,11 @@ def setup(args):
                                     fire_color, watered_chaparral_color, watered_dense_forrest_color,
                                     watered_scrubland_color])/255
 
-    grid_height = 200
-    grid_width = 200
+    grid_height = 50
+    grid_width = 50
 
     config.grid_dims = (grid_width, grid_height)
-    config.num_generations = 75
+    config.num_generations = 5
 
     def draw_terrain():
         rows, cols = config.grid_dims
@@ -357,13 +357,13 @@ def setup(args):
         arr = np.array(arr)
 
         #add fire
-        x1, x2 = int(0.08*cols), int(0.085*cols)
-        y1, y2 = rows-int(0.65*rows), rows-int(0.645*rows)
+        x1, x2 = int(0.08*cols), int(math.ceil(0.085*cols))
+        y1, y2 = rows-int(math.ceil(0.65*rows)), rows-int(0.645*rows)
         arr[y1:y2, x1:x2] = 5
 
         #add Power plant
-        x1, x2 = int(0.9*cols), int(0.905*cols)
-        y1, y2 = rows - int(0.65*rows), rows-int(0.645*rows)
+        x1, x2 = int(0.9*cols), int(math.ceil(0.905*cols))
+        y1, y2 = rows - int(math.ceil(0.65*rows)), rows-int(0.645*rows)
         arr[y1:y2, x1:x2] = 4
 
         # add lakes
