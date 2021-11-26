@@ -21,30 +21,28 @@ import numpy as np
 import math
 from matplotlib import pyplot as plt
 from scipy.ndimage.filters import gaussian_filter
-     
 
-def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_terrain, topology_grid, generation_array, plane_params, wind_params, grid_dims, max_cells_we_can_fill_with_water, fire_slope_probability):
 
+def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_terrain, topology_grid, generation_array,
+                    plane_params, wind_params, grid_dims, max_cells_we_can_fill_with_water, fire_slope_probability):
     # Keeps track of generations
     generation_array[0] += 1
-
 
     grid_height = grid_dims[1]
     grid_width = grid_dims[0]
 
-    
     # (0, 1, 2, 3, 4, 5, 6, 7, 8)
     # chaparral_color, lake_color, dense_forest_color, scrubland_color, town_color,
-    #fire_color, watered_chaparral_color, watered_dense_forrest_color,
-    #                                watered_scrubland_color]
+    # fire_color, watered_chaparral_color, watered_dense_forrest_color,
+    # watered_scrubland_color]
     # { terrain_type: (p_veg, p_den) }
-    terrain_fire_rates = {0: (0.1, 0), 1: (0, 0), 2: (-0.9, 0.3), 3: (0.9, 0), 4: (0, 0), 5: (0, 0), 6: (0.1, 0), 7: (-0.9, 0.3), 8: (0.9, 0)}
+    terrain_fire_rates = {0: (0.1, 0), 1: (0, 0), 2: (-0.9, 0.3), 3: (0.9, 0), 4: (0, 0), 5: (0, 0), 6: (0.1, 0),
+                          7: (-0.9, 0.3), 8: (0.9, 0)}
 
     wet_fire_rate = 0.01
     propagation_constant = 0.58
 
     def lightning_strike():
-        print('lightning')
         x, y = (random.randint(0, grid_dims[0] - 1), random.randint(0, grid_dims[1] - 1))
         if probability_p_burn(y, x, lighting=True):
             grid[y][x] = 5
@@ -54,9 +52,8 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         return burning_x, burning_y
 
     def spotting(burning_cell, wind_direction, wind_speed):
-        print('spotting')
         x, y = burning_cell
-        distance_x, distance_y = x*wind_direction[0], y*wind_direction[1]
+        distance_x, distance_y = x * wind_direction[0], y * wind_direction[1]
 
         if distance_x < 0:
             distance_x *= -1
@@ -71,15 +68,15 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         relative_dist_x = random.randint(0, int(distance_x * (wind_speed / 25)))
         relative_dist_y = random.randint(0, int(distance_y * (wind_speed / 25)))
 
-        x = x + relative_dist_x*wind_direction[0]
-        y = y + relative_dist_y*wind_direction[1]
+        x = x + relative_dist_x * wind_direction[0]
+        y = y + relative_dist_y * wind_direction[1]
 
         if probability_p_burn(y, x, spotted=True):
             grid[y][x] = 5
 
     def decision(probability):
         return random.random() < probability
-    
+
     def probability_p_burn(x, y, spotted=False, lighting=False):
 
         terrain = grid[x][y]
@@ -89,9 +86,11 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         if spotted or lighting:
 
             if terrain == 0 or terrain == 2 or terrain == 3:
-                p_h, p_veg, p_den = (propagation_constant, terrain_fire_rates[terrain][0], terrain_fire_rates[terrain][1])
+                p_h, p_veg, p_den = (
+                    propagation_constant, terrain_fire_rates[terrain][0], terrain_fire_rates[terrain][1])
             elif terrain == 6 or terrain == 7 or terrain == 8:
-                p_h, p_veg, p_den, p_we = (propagation_constant, terrain_fire_rates[terrain][0], terrain_fire_rates[terrain][1], wet_fire_rate)
+                p_h, p_veg, p_den, p_we = (
+                    propagation_constant, terrain_fire_rates[terrain][0], terrain_fire_rates[terrain][1], wet_fire_rate)
 
             decide = decision(p_h * (1 + p_veg) * (1 + p_den) * p_we)
             return decide
@@ -102,11 +101,14 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
 
         decide = False
 
+        # for each burning neighbouring cell calculate if the center cells catches on fire
         for p_w in wind_probabilities:
             if terrain == 0 or terrain == 2 or terrain == 3:
-                p_h, p_veg, p_den = (propagation_constant, terrain_fire_rates[terrain][0], terrain_fire_rates[terrain][1])
+                p_h, p_veg, p_den = (
+                    propagation_constant, terrain_fire_rates[terrain][0], terrain_fire_rates[terrain][1])
             elif terrain == 6 or terrain == 7 or terrain == 8:
-                p_h, p_veg, p_den, p_we = (propagation_constant, terrain_fire_rates[terrain][0], terrain_fire_rates[terrain][1], wet_fire_rate)
+                p_h, p_veg, p_den, p_we = (
+                    propagation_constant, terrain_fire_rates[terrain][0], terrain_fire_rates[terrain][1], wet_fire_rate)
 
             decide = decision(p_h * (1 + p_veg) * (1 + p_den) * p_w * p_s * p_we)
 
@@ -117,12 +119,12 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
 
     def probability_p_w(wind_direction, wind_speed, relative_fire_coordinates):
         x_vect, y_vect = wind_direction
-        wind_direction = (y_vect, x_vect*(-1))
+        wind_direction = (y_vect, x_vect * (-1))
         wind_probabilities = []
 
-        for fire_direction in relative_fire_coordinates:
-            angle = angle_between_two_vectors(fire_direction, wind_direction)/2
-            pdf = scipy.stats.norm(0, 1/wind_speed).pdf(angle)
+        for fire_dir in relative_fire_coordinates:
+            angle = angle_between_two_vectors(fire_dir, wind_direction) / 2
+            pdf = scipy.stats.norm(0, 1 / wind_speed).pdf(angle)
             wind_probabilities.append(pdf)
 
         return wind_probabilities
@@ -137,16 +139,16 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         return (cells_that_should_spread_fire == True).size / 8
 
     def calculate_terrain_spread_probabilities(row, column):
-        
+
         def calculate_slope(current_cell, neighbour_cell, is_diagonal):
             if is_diagonal:
-                return (current_cell, math.degrees(math.atan((current_cell - neighbour_cell) / math.sqrt(2))))
+                return current_cell, math.degrees(math.atan((current_cell - neighbour_cell) / math.sqrt(2)))
             else:
-                return (current_cell, math.degrees(math.atan((current_cell - neighbour_cell) / 1)))
+                return current_cell, math.degrees(math.atan((current_cell - neighbour_cell) / 1))
 
         terrain = grid[row][column]
-        
-         # Non Diagonal
+
+        # Non Diagonal
         up_slope = calculate_slope(terrain, topology_grid[row][col + 1], False)
         down_slope = calculate_slope(terrain, topology_grid[row][col - 1], False)
         right_slope = calculate_slope(terrain, topology_grid[row + 1][col], False)
@@ -158,12 +160,13 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         top_right_slope = calculate_slope(terrain, topology_grid[row - 1][col + 1], True)
         bottom_right_slope = calculate_slope(terrain, topology_grid[row + 1][col + 1], True)
 
-        slopes = [up_slope, down_slope, left_slope, right_slope, top_left_slope, top_right_slope, bottom_left_slope, bottom_right_slope]
+        slopes = [up_slope, down_slope, left_slope, right_slope, top_left_slope, top_right_slope, bottom_left_slope,
+                  bottom_right_slope]
 
         fire_probabilities = list(map(lambda x: terrain_fire_rates[x[0]][1] * math.exp(1 * x[1]), slopes))
 
         return fire_probabilities
-    
+
     def angle_between_two_vectors(v1, v2):
         def unit_vector(vector):
             return np.divide(vector, np.linalg.norm(vector))
@@ -172,6 +175,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         v2_u = unit_vector(v2)
         return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
 
+    # calculate which direction is the fire coming from and return coordinates in relation to the given cell
     def fire_direction(cell_x, cell_y):
         relative_fire_coordinates = []
         for x in [-1, 0, 1]:
@@ -182,9 +186,9 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
 
         return relative_fire_coordinates
 
-    np.seterr(invalid='ignore')  # ignores warnings lol
+    np.seterr(invalid='ignore')  # ignores warnings
 
-    # cells that can catch fire: chaparral, forest, scrubland and have a neighbour thats on fire
+    # cells that can catch fire: chaparral, forest, scrubland and have a neighbour that's on fire
     burnable_cells = (((grid == 0) | (grid == 2) | (grid == 3) | (grid == 6) | (grid == 7) | (grid == 8))
                       & (neighbourcounts[5] >= 1))
 
@@ -193,6 +197,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
 
     # take one off their decay value, calculates for how many time steps a cell has been burning
     decaygrid[burning_cells] -= 1
+
     # assigns the probability of each cell catching fire and then probabilistically decides if it will
     burning_array = []
     for row in range(0, grid_height - 1):
@@ -213,6 +218,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
     dense_forest_burning_gen = -50
     scrubland_burning_gen = -10
 
+    # if particular terrain burned for the identified amount of generations it gets assigned to burnt state
     decayed_to_burned_land = (((decaygrid == chaparral_burning_gen) & (initial_terrain == 0))
                               | ((decaygrid == dense_forest_burning_gen) & (initial_terrain == 2))
                               | ((decaygrid == scrubland_burning_gen) & (initial_terrain == 3))
@@ -224,16 +230,15 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
     grid[burnable_cells] = 5
 
     # Plane
-    #plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction, plane_start_gen, plane_height, cells_plane_already_dropped_water_on], dtype=object)
+    # plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction, plane_start_gen, plane_height,
+    # cells_plane_already_dropped_water_on], dtype=object)
     if generation_array[0] >= plane_params[3]:
 
-        #print("PP5: ", len(plane_params[5]))
+        # print("PP5: ", len(plane_params[5]))
 
         # Check if plane is out of water
         if len(plane_params[5]) >= max_cells_we_can_fill_with_water:
             return grid
-
-        time_step_diff = generation_array[0] - plane_params[3]
 
         old_plane_pos_x = plane_params[0][0]
         old_plane_pos_y = plane_params[0][1]
@@ -262,7 +267,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
         if old_plane_pos_x >= new_plane_pos_x:
             range_x = np.arange(new_plane_pos_x, old_plane_pos_x + 1)
 
-        if old_plane_pos_x == new_plane_pos_x:  
+        if old_plane_pos_x == new_plane_pos_x:
             range_x = np.concatenate((np.array([old_plane_pos_x]), range_x))
 
         if old_plane_pos_y == new_plane_pos_y:
@@ -296,15 +301,13 @@ def transition_func(grid, neighbourstates, neighbourcounts, decaygrid, initial_t
 
         # grid[np.ix_(range_y, range_x)] = 1
 
-
         # Log the cells that have had water dropped on them
         indexes = np.ix_(range_y.tolist(), range_x.tolist())
 
-        r,c = np.meshgrid(*indexes)
-        out = np.column_stack((r.ravel('F'), c.ravel('F') ))
-    
+        r, c = np.meshgrid(*indexes)
+        out = np.column_stack((r.ravel('F'), c.ravel('F')))
+
         plane_params[5].update(set(list(map(lambda x: (x[0], x[1]), out.tolist()))))
-    
 
     if decision(0.01):
         spotting(find_random_burning_cell(burning_array), wind_params[0], wind_params[1])
@@ -325,7 +328,6 @@ def setup(args):
 
     # ---- Override the defaults below (these may be changed at anytime) ----
     # color codes for each terrain property
-
     chaparral_color = (229, 208, 176)
     watered_chaparral_color = (229, 208, 253)
     lake_color = (75, 182, 239)
@@ -338,8 +340,7 @@ def setup(args):
 
     config.state_colors = np.array([chaparral_color, lake_color, dense_forest_color, scrubland_color, town_color,
                                     fire_color, watered_chaparral_color, watered_dense_forrest_color,
-                                    watered_scrubland_color])/255
-
+                                    watered_scrubland_color]) / 255
 
     grid_sizes = [(50, 50), (200, 200), (500, 500)]
 
@@ -356,46 +357,46 @@ def setup(args):
         arr = [[0] * cols] * rows
         arr = np.array(arr)
 
-        #add fire / incinerator
-        x1, x2 = int(0.08*cols), int(math.ceil(0.085*cols))
-        y1, y2 = rows-int(math.ceil(0.65*rows)), rows-int(0.645*rows)
+        # add fire / incinerator
+        x1, x2 = int(0.08 * cols), int(math.ceil(0.085 * cols))
+        y1, y2 = rows - int(math.ceil(0.65 * rows)), rows - int(0.645 * rows)
         arr[y1:y2, x1:x2] = 5
 
-        #add Power plant
-        x1, x2 = int(0.9*cols), int(math.ceil(0.905*cols))
-        y1, y2 = rows - int(math.ceil(0.65*rows)), rows-int(0.645*rows)
+        # add Power plant
+        x1, x2 = int(0.9 * cols), int(math.ceil(0.905 * cols))
+        y1, y2 = rows - int(math.ceil(0.65 * rows)), rows - int(0.645 * rows)
         arr[y1:y2, x1:x2] = 4
 
         # add lakes
-        x1, x2 = int(0.15*cols), int(0.2*cols)
-        y1, y2 = rows-int(0.7*rows), rows-int(0.6*rows)
+        x1, x2 = int(0.15 * cols), int(0.2 * cols)
+        y1, y2 = rows - int(0.7 * rows), rows - int(0.6 * rows)
         arr[y1:y2, x1:x2] = 1
 
-        x1, x2 = int(0.6*cols), int(0.9*cols)
-        y1, y2 = rows-int(0.35*rows), rows-int(0.3*rows)
+        x1, x2 = int(0.6 * cols), int(0.9 * cols)
+        y1, y2 = rows - int(0.35 * rows), rows - int(0.3 * rows)
         arr[y1:y2, x1:x2] = 1
 
         # add dense forest
-        x1, x2 = int(0.2*cols), int(0.3*cols)
-        y1, y2 = rows-int(0.6*rows), rows-int(0.2*rows)
+        x1, x2 = int(0.2 * cols), int(0.3 * cols)
+        y1, y2 = rows - int(0.6 * rows), rows - int(0.2 * rows)
         arr[y1:y2, x1:x2] = 2
 
-        x1, x2 = int(0.3*cols), int(0.4*cols)
-        y1, y2 = rows-int(0.9*rows), rows-int(0.4*rows)
+        x1, x2 = int(0.3 * cols), int(0.4 * cols)
+        y1, y2 = rows - int(0.9 * rows), rows - int(0.4 * rows)
         arr[y1:y2, x1:x2] = 2
 
-        x1, x2 = int(0.3*cols), int(1*cols)
-        y1, y2 = rows-int(0.5*rows), rows-int(0.4*rows)
+        x1, x2 = int(0.3 * cols), int(1 * cols)
+        y1, y2 = rows - int(0.5 * rows), rows - int(0.4 * rows)
         arr[y1:y2, x1:x2] = 2
 
         # add scrubland
-        x1, x2 = int(0.25*cols), int(0.3*cols)
-        y1, y2 = rows-int(0.9*rows), rows-int(0.1*rows)
+        x1, x2 = int(0.25 * cols), int(0.3 * cols)
+        y1, y2 = rows - int(0.9 * rows), rows - int(0.1 * rows)
         arr[y1:y2, x1:x2] = 3
 
         # add a town
-        x1, x2 = int(0.5*cols), int(0.55*cols)
-        y1, y2 = rows-int(0.25*rows), rows-int(0.2*rows)
+        x1, x2 = int(0.5 * cols), int(0.55 * cols)
+        y1, y2 = rows - int(0.25 * rows), rows - int(0.2 * rows)
         arr[y1:y2, x1:x2] = 4
 
         return arr
@@ -421,18 +422,16 @@ def main():
     decaygrid = np.zeros(config.grid_dims)
     decaygrid.fill(2)
 
-
     fire_slope_probability = 0.5
-    
+
     # Initialise topology Grid
     topology_type = config.terrain_type
 
     smoothed_topology = np.ones(config.grid_dims)
     if topology_type != 0:
-        smoothed_topology = np.loadtxt("topology_" + str(topology_type) + "_" + str(config.grid_dims) + ".txt", dtype=int)
-        
-    
-    
+        smoothed_topology = np.loadtxt("topology_" + str(topology_type) + "_" + str(config.grid_dims) + ".txt",
+                                       dtype=int)
+
     # Code to generate random terrains # DONT REMOVE
     """
     options = [(1, (50, 50)), (1, (200, 200)), (1, (500, 500)), (2, (50, 50)), (2, (200, 200)), (2, (500, 500))]
@@ -457,32 +456,35 @@ def main():
     
     """
 
-    ## Wind
+    # Wind
     wind_speed = 2.5
     wind_direction = [1, 1]
     wind_params = np.array([wind_direction, wind_speed], dtype=object)
-    
-    ## Amount of water we can drop from the plane
+
+    # Amount of water we can drop from the plane
     max_cells_we_can_fill_with_water = int(12_500_000 / ((50000 / config.grid_dims[0]) ** 2))
 
-    ## Plane
-    drop_start_pos = (50, 50)
+    # Plane
+    drop_start_pos = (100, 100)
     plane_current_pos = drop_start_pos
 
     # 0 = North, 90 = East
     plane_direction = 70
 
     plane_start_gen = 0
-    plane_height = 10 #km
+    plane_height = 10  # km
 
     # Measure in number of cells
     cells_plane_already_dropped_water_on = set()
 
-    plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction, plane_start_gen, plane_height, cells_plane_already_dropped_water_on], dtype=object)
+    plane_params = np.array([plane_current_pos, drop_start_pos, plane_direction, plane_start_gen, plane_height,
+                             cells_plane_already_dropped_water_on], dtype=object)
 
     # Create grid object
-    grid = Grid2D(config, (transition_func, decaygrid, initial_terrain, smoothed_topology, generation_count, plane_params, wind_params, config.grid_dims, max_cells_we_can_fill_with_water, fire_slope_probability))
-    
+    grid = Grid2D(config, (
+        transition_func, decaygrid, initial_terrain, smoothed_topology, generation_count, plane_params, wind_params,
+        config.grid_dims, max_cells_we_can_fill_with_water, fire_slope_probability))
+
     # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
 
